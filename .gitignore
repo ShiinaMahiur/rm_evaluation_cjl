@@ -1,0 +1,35 @@
+# ===== 数据（体积大，绝不进 git）=====
+bags/
+*.db3
+*.mcap
+*.zstd
+*.bag
+
+# ===== 编译产物 =====
+build/
+install/
+log/
+target/
+node_modules/
+__pycache__/
+*.pyc
+*.so
+*.o
+
+# ===== 编辑器/系统 =====
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ===== 隐私（绝不入库）=====
+*.jsonl
+*.jsonl.zstd
+session.v4.jsonl.zstd
+sessions/
+dsh-shared/
+*Clash*.txt
+*订阅*
+*.credentials*
