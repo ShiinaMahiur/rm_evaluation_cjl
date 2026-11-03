@@ -175,15 +175,19 @@ scenario_B() {   # 匀速平移：假人横移
 scenario_C() {   # 自转 + 平移：底盘旋转 + 横移
   keydown u; keydown j; sleep "$DUR"; keyup u; keyup j
 }
-scenario_D() {   # 移出视野再回来（近似遮挡后的丢失/重捕获）
-  local t1=$((DUR/2)); local rest=$((DUR-t1-2))
-  [ "$rest" -lt 1 ] && rest=1
-  keydown j; sleep "$t1"; keyup j
+scenario_D() {   # 移出视野再回来：用"己方左右平移"让目标出画（对称，必回来）
+  # 目标在 2~4 m 时，横向 5 s ≈ 10 m，足够出画；反向等时长平移保证回到原视野
+  keydown d; sleep 5; keyup d
   sleep 2
-  keydown l; sleep "$rest"; keyup l
+  keydown a; sleep 5; keyup a
+  sleep $((DUR - 12 > 0 ? DUR - 12 : 1))
 }
-scenario_E() {   # 大角度斜视：横移 + 假人云台偏转
-  keydown l; keydown b; sleep "$DUR"; keyup l; keyup b
+scenario_E() {   # 大角度斜视：己方小幅左右平移，观察装甲板法线夹角 > 60° 时的表现
+  for i in 1 2; do
+    keydown d; sleep 5; keyup d
+    keydown a; sleep 5; keyup a
+  done
+  sleep $((DUR - 20 > 0 ? DUR - 20 : 1))
 }
 
 run_scene() {
