@@ -6,8 +6,8 @@
 #
 #  它替你做这些事（每一条都是真机上会踩的坑）：
 #   1. 挂 D 盘（NTFS），bag 直接写到 /media/$USER/RJ/rm_vision/bags
-#   2. 把 config.toml 的 present_mode 改成 auto_vsync（默认是 auto_no_vsync，
-#      实测会跑到 280+ Hz，20 秒一个场景就 27 GB，D 盘装不下 5 个）
+#   2. 关闭 preview；录 bag 用「全速 + zstd 压缩」（实测 ~48 KB/帧，
+#      20 s 单场景约 200 MB，5 场景约 1 GB；不再强求 60 Hz）
 #   3. 用 XWayland 后端启动仿真器（DAEDALUS_BACKEND=x11）—— 因为 Wayland 下
 #      xdotool 无法给原生 Wayland 窗口发按键，而假人必须靠按键驱动
 #   4. 用 xdotool 按时间轴发 I/J/K/L/U/O/F/V/C/B/Tab 造场景
@@ -18,14 +18,17 @@
 #    bash record_bags.sh                  # 5 个场景 × 20 秒
 #    DUR=20 SCENES="A B" bash record_bags.sh   # 只录 A、B
 #    DUR=5 SCENES="A" bash record_bags.sh      # 先来个 5 秒试录，验证链路
-#    FORCE_HIGH_FPS=1 bash record_bags.sh      # 不检查 60Hz（不建议）
+#    bash record_bags.sh                       # 全速录 + zstd（推荐）
 #
-#  前提：显示器刷新率切到 60 Hz（设置 → 显示器 → 刷新率 60.00 Hz）。
-#        面板 EDID 实测支持 60~240 Hz，不切的话 bag 会大到装不下。
+#  前提：
+#    - 当前桌面会话是 X11（xdotool 只能给 X11/XWayland 窗口发按键）
+#    - 已装 xdotool：sudo apt install -y xdotool
+#    - 显示器刷新率不用管（录制端靠 zstd 压缩控制体积）
 # =============================================================================
 set -uo pipefail
 
 # ------------------------------- 可调参数 -----------------------------------
+SIM_PID=""
 DUR="${DUR:-20}"                                 # 每个场景录多少秒（考核要求 >=20）
 SCENES="${SCENES:-A B C D E}"                    # 要录哪些场景
 BAGS_ROOT="${BAGS_ROOT:-/media/$USER/RJ/rm_vision/bags}"
@@ -78,20 +81,14 @@ FREE_GB=$(df -Pk "$BAGS_ROOT" | awk 'NR==2{printf "%d", $4/1048576}')
 [ "${FREE_GB:-0}" -ge 10 ] || die "D 盘只剩 ${FREE_GB} GB，录 5 个场景不够"
 ok "D 盘可用，剩余 ${FREE_GB} GB，输出目录 $BAGS_ROOT"
 
-# ------------------------------- 2. 限帧 ------------------------------------
-say "2/6 把仿真器限到 60 Hz（present_mode: auto_no_vsync → auto_vsync）"
-if grep -q '^present_mode = "auto_no_vsync"' "$CFG"; then
-  [ -f "$CFG.pre_bag" ] || cp "$CFG" "$CFG.pre_bag"
-  sed -i 's/^present_mode = "auto_no_vsync"/present_mode = "auto_vsync"/' "$CFG"
-  ok "已切换（原文件备份：$CFG.pre_bag）"
-elif grep -q '^present_mode = "auto_vsync"' "$CFG"; then
-  ok "已经是 auto_vsync"
-else
-  warn "没找到预期的 present_mode 行，请手动确认 config.toml"
-fi
-
-# 录 bag 时必须关掉 preview：ros2 构建下主相机 is_active=false，画面是靠 preview
-# 的 UI blit 显示的；preview 开着会多渲染一遍（掉帧），且窗口画面和采集内容重复。
+# ------------------------------- 2. 录制配置 --------------------------------
+# 实测（2026-11-03）：X11/XWayland 后端下 present_mode 的 vsync 不生效，
+# /image_raw 会跑到 ~230-285 Hz；与其跟渲染帧率较劲，不如"全速录 + zstd 压缩"：
+#   实测 1253 帧 → 48 MB（约 38 KB/帧），20 s 单场景 ≈ 140 MB，5 场景 ≈ 0.7 GB。
+#   用 **message 级压缩**（不是 file 级）：播放/抽帧时按消息解压，不会产生几十 GB 临时文件。
+# 需要标准 60 Hz 数据集时，可改用 scripts/bag_throttle_record.py 限频录制。
+say "2/6 录制配置（关 preview；present_mode 恢复不限帧）"
+grep -q '^present_mode = "auto_vsync"' "$CFG" && sed -i 's/^present_mode = "auto_vsync"/present_mode = "auto_no_vsync"/' "$CFG" && ok "present_mode → auto_no_vsync"
 python3 - "$CFG" <<'PYCFG'
 import re, sys
 p = sys.argv[1]
@@ -103,15 +100,26 @@ if s2 != s:
 PYCFG
 
 # ------------------------------- 3. 起仿真器 ---------------------------------
-say "3/6 启动仿真器（XWayland 后端，xdotool 才能发按键）"
-pkill -f "target/release/daedalus" 2>/dev/null && { warn "杀掉了残留的仿真器实例"; sleep 2; }
-pkill -f "ros2 bag record" 2>/dev/null && { warn "杀掉了残留的 bag 录制进程"; sleep 1; }
-rm -f "$SIMLOG"
-DAEDALUS_BACKEND=x11 setsid "$LAUNCHER" >"$SIMLOG" 2>&1 </dev/null &
-SIM_PID=$!
-cleanup_sim() { kill -TERM -"$SIM_PID" 2>/dev/null || kill -TERM "$SIM_PID" 2>/dev/null || true
-                sleep 1; pkill -f "target/release/daedalus" 2>/dev/null || true; }
-trap cleanup_sim EXIT
+KEEP_SIM="${KEEP_SIM:-0}"
+if [ "$KEEP_SIM" = "1" ] && pgrep -x daedalus >/dev/null; then
+  say "3/6 沿用已在运行的仿真器（KEEP_SIM=1，不重启、不杀它）"
+  if [ -z "${SIM_PID:-}" ]; then
+    SIM_PID="$(pgrep -x daedalus | head -1)"
+    # KEEP_SIM 模式下不要把用户的仿真器杀掉
+    trap - EXIT
+    cleanup_sim() { :; }
+    trap cleanup_sim EXIT
+  fi
+else
+  say "3/6 启动仿真器（XWayland 后端，xdotool 才能发按键）"
+  pkill -x daedalus 2>/dev/null; sleep 1
+  rm -f "$SIMLOG"
+  DAEDALUS_BACKEND=x11 setsid "$LAUNCHER" >"$SIMLOG" 2>&1 </dev/null &
+  SIM_PID=$!
+  cleanup_sim() { kill -TERM -"$SIM_PID" 2>/dev/null || kill -TERM "$SIM_PID" 2>/dev/null || true
+                  sleep 1; pkill -x daedalus 2>/dev/null || true; }
+  trap cleanup_sim EXIT
+fi
 
 say "等待 /image_raw 出数据（最多 60 秒）"
 W=0
@@ -123,27 +131,20 @@ done
 [ "${W:-}" = "1440" ] || { warn "没等到 /image_raw（width=${W:-空}），日志 $SIMLOG 前 30 行："; head -30 "$SIMLOG" | sed 's/^/    /'; die "仿真器没起来"; }
 ok "/image_raw 宽度 = 1440"
 
-say "量一下实际帧率"
+say "量一下实际帧率（仅供参考，不再限帧）"
 HZ="$(timeout 8 ros2 topic hz /image_raw 2>/dev/null | grep -oE 'average rate: [0-9.]+' | tail -1 | grep -oE '[0-9.]+')"
-if [ -n "${HZ:-}" ]; then
-  ok "当前 /image_raw ≈ ${HZ} Hz"
-  if [ "$(awk "BEGIN{print ($HZ > 90)}")" = "1" ] && [ "${FORCE_HIGH_FPS:-0}" != "1" ]; then
-    warn "帧率还是 >90 Hz —— 说明显示器还没切到 60 Hz"
-    warn "请打开：设置 → 显示器 → 刷新率 → 选 60.00 Hz，然后重新跑本脚本"
-    die "为保护 D 盘，先停下。确认是 60 Hz 后重跑；确实要高帧率录请加 FORCE_HIGH_FPS=1"
-  fi
-else
-  warn "没量到帧率，继续（体积可能偏大）"
-fi
+[ -n "${HZ:-}" ] && ok "当前 /image_raw ≈ ${HZ} Hz（zstd 压缩后单场景约 140 MB）" || warning "没量到帧率，继续"
 
 # ------------------------------- 4. 窗口焦点 ---------------------------------
 say "4/6 找到仿真窗口并聚焦（xdotool 发按键的前提）"
 [ -z "${DISPLAY:-}" ] && warn "DISPLAY 为空，xdotool 发不了键（请在桌面终端里跑）"
 WID=""
 DAE_PID=""
+xtry=0
 for i in $(seq 1 20); do
   DAE_PID="$(pgrep -f 'target/release/daedalus' 2>/dev/null | head -1)"
   # 三种找法，优先级：按进程 → 按标题 → 按窗口类
+  xtry=$i
   [ -n "$DAE_PID" ] && WID="$(xdotool search --pid "$DAE_PID" 2>/dev/null | head -1)"
   [ -z "${WID:-}" ] && WID="$(xdotool search --onlyvisible --name "daedalus" 2>/dev/null | head -1)"
   [ -z "${WID:-}" ] && WID="$(xdotool search --onlyvisible --class "daedalus" 2>/dev/null | head -1)"
@@ -193,7 +194,7 @@ run_scene() {
     warn "旧的 scene$name 已改名保留"
   fi
   say "录场景 $name：$desc（${DUR}s，zstd）"
-  ros2 bag record --compression-mode file --compression-format zstd \
+  ros2 bag record --compression-mode message --compression-format zstd \
     -o "$out" "${TOPLIST[@]}" >"$HOME/bag_scene$name.log" 2>&1 &
   local rec=$!
   sleep 1

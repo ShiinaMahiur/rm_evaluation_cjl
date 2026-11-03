@@ -27,13 +27,37 @@ from rclpy.serialization import deserialize_message
 from sensor_msgs.msg import Image
 
 
+def _compression_mode(bag_dir: str) -> str:
+    """从 metadata.yaml 读 compression_mode（NONE/FILE/MESSAGE）。"""
+    try:
+        import yaml
+        with open(os.path.join(bag_dir, "metadata.yaml"), encoding="utf-8") as fh:
+            info = yaml.safe_load(fh)["rosbag2_bagfile_information"]
+        return str(info.get("compression_mode", "NONE")).upper()
+    except Exception:  # noqa: BLE001
+        return "NONE"
+
+
 def open_reader(uri: str):
     storage_options = rosbag2_py.StorageOptions(uri=uri, storage_id="sqlite3")
     converter_options = rosbag2_py.ConverterOptions(
         input_serialization_format="cdr", output_serialization_format="cdr"
     )
-    reader = rosbag2_py.SequentialReader()
-    reader.open(storage_options, converter_options)
+    mode = _compression_mode(uri)
+    # 经验（2026-11-03 实测）：
+    #   - MESSAGE 级压缩：只有 SequentialCompressionReader 会逐条解压（普通 Reader 拿到的是压缩块，
+    #     deserialize 会报 Fast CDR 错误）；而且它不会产生整文件大小的临时文件。
+    #   - FILE 级压缩：也只有 CompressionReader 能读。
+    #   - 未压缩：CompressionReader 同样可用；万一不行再退回普通 Reader。
+    if mode in ("FILE", "MESSAGE"):
+        reader = rosbag2_py.SequentialCompressionReader()
+    else:
+        reader = rosbag2_py.SequentialReader()
+    try:
+        reader.open(storage_options, converter_options)
+    except Exception:  # noqa: BLE001
+        reader = rosbag2_py.SequentialCompressionReader()
+        reader.open(storage_options, converter_options)
     return reader
 
 
