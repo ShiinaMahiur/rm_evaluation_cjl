@@ -78,6 +78,6 @@ say "开始回放（rate=$RATE）。Ctrl+C 结束"
 if [ "$NO_FOLLOW" != "1" ] && [ -z "$FOLLOW_PID" ]; then
   echo "    [!] 没有跟随节点，云台不会动"
 fi
-ros2 bag play "$BAG" -r "$RATE"
+ros2 bag play "$BAG" -r "$RATE" --read-ahead-queue-size 2000
 
 say "回放结束"
