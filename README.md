@@ -82,6 +82,7 @@ ros2 launch rm_vision_probe vision.launch.py
 |---|---|---|
 | **`scripts/replay_bag.sh`** | **一键回放 bag + 云台跟随**（自动起仿真器、起图像重心跟踪节点、回放） | ✅ **S0 验收项** |
 | `scripts/run_all.sh` | 一键启动整套系统（仿真器 → 等待图像 → 视觉链路） | ✅ 提交要求「一键运行脚本」 |
+| `scripts/sim.sh` | 仿真器一键启动/停止/状态（`--preview` 看画面、`--manual` 方向键控云台） | 日常调试 |
 | `scripts/follow_target.py` | 图像重心 + P 控制 → `/rm_gimbal/cmd`（无识别阶段的云台跟随闭环） | S0 链路验证 |
 | `scripts/record_bags.sh` | 录 S0 数据集（5 场景 × 20 s，message 级 zstd） | 数据集采集 |
 | `scripts/bag_view.sh` | 回放 bag 并显示图像窗口（不用 rqt 也行） | 看数据 |
@@ -94,6 +95,12 @@ ros2 launch rm_vision_probe vision.launch.py
 
 # 只回放不驱动云台
 NO_FOLLOW=1 ~/replay_bag.sh /media/$USER/RJ/rm_vision/bags/sceneB
+
+# 仿真器一键启动（可选：看画面 / 手动控云台 / 停止 / 状态）
+~/sim.sh                        # 正常启动（后台）
+~/sim.sh --preview --manual     # 看画面 + 方向键控云台
+~/sim.sh --status               # 看状态
+~/sim.sh --stop                 # 停止
 
 # 整套系统一键启动
 ~/run_all.sh
