@@ -20,6 +20,7 @@ setup(
         'console_scripts': [
             'image_probe = rm_vision_probe.image_probe:main',
             'detector_traditional = rm_vision_probe.detector_traditional:main',
+            'armor_solver = rm_vision_probe.armor_solver:main',
             'gimbal_cmd = rm_vision_probe.gimbal_cmd:main',
         ],
     },

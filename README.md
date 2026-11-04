@@ -151,7 +151,7 @@ ArmorObs(
 | `rm_vision_probe` | `gimbal_cmd` | S0 手动云台：发布 `/rm_gimbal/cmd` |
 | `rm_vision_probe` | `detector_traditional` | **S1 传统灯条法**：`/detector/armors` + `/detector/debug_image` |
 | （离线） | `scripts/make_yolo_dataset.py` + `eval_yolo.py` | **S1 深度学习路线**：真值自动标注 → YOLOv8n 训练/评估 |
-| `rm_vision_probe` | `armor_solver` | S2 观测器（待实现） |
+| `rm_vision_probe` | `armor_solver` | **S2 观测器（已实现）**：PnP(IPPE) → `/solver/armors`（相机系/odom 系位姿） |
 | `rm_vision_probe` | `armor_tracker` | S3 估计器（待实现） |
 | `rm_vision_probe` | `trajectory_planner` | S4 规划器（待实现） |
 
@@ -226,30 +226,38 @@ ArmorObs(
 
 ### 3.2 观测器（S2）
 
-**坐标系链路：**
+**链路：像素角点 → PnP → 相机系位姿 → TF → odom 系位姿**
 
 ```
-camera_optical_frame → camera_link → gimbal_link → odom
+[识别 S1] 4 角点（左上→右上→右下→左下）
+   ↓  refine_corners()：宽度取两灯外沿，高度按板宽高比 0.833 重建
+      （实测灯条比装甲板高 1.30 倍，直接用会把目标算远）
+   ↓  cv2.solvePnP(OBJ_PTS, corners, K, D, flags=SOLVEPNP_IPPE)
+相机系位姿 (R, t) + 重投影误差
+   ↓  tf: camera_optical_frame → odom
+odom 系位姿 → 交给 S3
 ```
 
-**PnP 方法选择：**
+| 项 | 值 |
+|---|---|
+| 装甲板物理尺寸 | 宽 **0.15 m** × 高 **0.125 m**（仿真 marker scale） |
+| PnP 方法 | `SOLVEPNP_IPPE`（平面目标解析解 + 精化；斜视比 ITERATIVE 稳，无翻转解） |
+| 内参 | 来自 `/camera_info`：fx=fy=1303.68, cx=720, cy=540, D=0（仿真无畸变） |
+| 节点 | `ros2 run rm_vision_probe armor_solver`（订阅 `/detector/armors` + `/camera_info` + TF，发布 `/solver/armors`） |
+| 解算耗时 | **0.46 ms/帧批**（Python，含 TF 查询） |
 
-| 方法 | 优点 | 缺点 | 选用？ |
-|---|---|---|---|
-| `SOLVEPNP_IPPE_SQUARE` | 针对正方形平面靶优化，快 | 只适用正方形 | ⬜ |
-| `SOLVEPNP_ITERATIVE` | 通用，精度高 | 慢，可能局部最优 | ⬜ |
-| `SOLVEPNP_SQPNP` | 闭式解，快且稳 | 对噪声敏感 | ⬜ |
+**实测精度（A~E，每 20 帧取 1）**
 
-**选型理由：** ⬜ 待填
+| 场景 | GT 角点 PnP（验证解算器） | 传统检测角点 → 端到端 |
+|---|---|---|
+| A 静止 | 位置误差 0.000 m，姿态误差 0.013° | **距离误差 4.44%，视线角误差 1.27°** |
+| B 平移 | 0.000 m / 0.023° | 6.70% / 1.32° |
+| C 自转+平移 | 0.000 m / 0.025° | 7.26% / 1.48°（匹配成功率 94.8%） |
+| D 遮挡 | 0.000 m / 0.037° | **48.1%** ← 匹配/遮挡问题，见 6.2 |
+| E 斜视 | 0.000 m / 0.040° | 38.9% / 2.10°（匹配成功率 58.5%） |
 
-**时间同步：**
-
-> 图像时间戳与 TF 时间戳不同步会引入角度误差。
-> 用 `tf2.lookup_transform(target, source, timestamp)` 指定时间，**不要用 `latest()`**。
-
-⬜ 待实现
-
----
+> **结论**：解算器本身几何正确（GT 角点误差 ≈0）；端到端误差主要来自**识别角点的像素级偏差**（约 2~3 px），
+> 这也是下一步优化的重点（灯条亚像素角点/边缘拟合）。A 场景已达到「距离 ≤5%」，角误差 1.27° 略超 1° 目标。
 
 ### 3.3 估计器（S3）
 
@@ -352,7 +360,7 @@ nvidia-smi --query-gpu=name,utilization.gpu --format=csv
 |---|---|---|---|---|
 | I1 | 识别准确率 | ≥ 0.90（传统）/ mAP@0.5 ≥ 0.85（DL） | 传统：检出率 A/B/C=100%、D=83.4%、E=18.3%；**YOLO：mAP@0.5=0.974、mAP@0.5:0.95=0.890、检出率 100%**（见 `metrics/s1_traditional.json`、`metrics/s1_yolo.json`） | 自建测试集（A~E bag，每 5 帧取 1；YOLO 验证集 373 张） |
 | I2 | 识别耗时 | ≤ 8 ms（CPU 1440×1080） | 传统：**7.44 ms**（CPU，p50 7.0/p95 10.7）；YOLO：**21.7 ms（CPU）/ 7.6 ms（GPU）** | 节点内计时 / `model.predict` 端到端计时 |
-| I3 | 解算精度 | 距离误差 ≤ 5%，角误差 ≤ 1° | ⬜ | 与 `/tf` 的 `armor_<id>` 真值对拍 |
+| I3 | 解算精度 | 距离误差 ≤ 5%，角误差 ≤ 1° | 解算器（GT 角点）≈0；端到端 A **4.44% / 1.27°**、B 6.7%、C 7.3%（见 `metrics/s2_pnp.json`） | 与 `/tf` 的 `armor_<id>` 真值对拍 |
 | I4 | 解算稳定性 | 无跳变/翻转 | ⬜ | 大角度斜视场景目视 + 曲线 |
 | I5 | 预测精度 | ≤ 0.08 m @ 100 ms（I5 定义写 200 ms，两个都测） | ⬜ | 预测值与真值对拍 |
 | I6 | 丢失恢复 | 判定 ≤ 30 ms，重捕获 ≤ 50 ms | ⬜ | 计时统计 |
@@ -393,6 +401,8 @@ nvidia-smi --query-gpu=name,utilization.gpu --format=csv
 |---|---|---|
 | **大角度斜视（E）检出率仅 18.3%** | 斜视时装甲板投影变窄，两个灯条间距/高度比超出几何约束（`gap_ratio` 0.6~3.0、`max_dy` 0.55），配对直接被过滤 | **已用 YOLO 路线解决**（同一验证集检出率 100%）；传统法若继续优化可加角度自适应约束 |
 | 单灯条被遮挡就漏检 | 传统法必须有成对灯条才能出装甲板 | M2：单灯补全策略 / DL 直接回归角点 |
+| **D 场景端到端距离误差 48%** | 遮挡帧里检测到的角点来自另一块/被遮挡装甲板，与最近 GT 匹配后位置差很大 | 用颜色+尺寸一致性做匹配；或改用 YOLO 框 + 角点回归 |
+| **E 场景匹配成功率仅 58.5%** | 斜视时灯条投影窄、角点误差 2~3 px，PnP 对角度敏感 | 灯条亚像素角点（边缘拟合/PCA）；下一步做 |
 
 ⬜ 待填（每完成一层，记录已知失败场景）
 

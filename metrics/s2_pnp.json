@@ -1,0 +1,321 @@
+{
+  "plate_size_m": [
+    0.15,
+    0.125
+  ],
+  "pnp_flag": "SOLVEPNP_IPPE",
+  "results": {
+    "A": {
+      "matched": 0,
+      "dets": 0,
+      "solved": 579,
+      "rep": 579,
+      "pos_err": 579,
+      "pos_rel": 579,
+      "bearing": 0,
+      "rot": 579,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_rel_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "bearing_deg_mean_p95": [
+        null,
+        null
+      ],
+      "rot_deg_mean_p95": [
+        0.0131,
+        0.0394
+      ],
+      "success_rate": null
+    },
+    "B": {
+      "matched": 0,
+      "dets": 0,
+      "solved": 719,
+      "rep": 719,
+      "pos_err": 719,
+      "pos_rel": 719,
+      "bearing": 0,
+      "rot": 719,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_rel_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "bearing_deg_mean_p95": [
+        null,
+        null
+      ],
+      "rot_deg_mean_p95": [
+        0.0227,
+        0.0493
+      ],
+      "success_rate": null
+    },
+    "C": {
+      "matched": 0,
+      "dets": 0,
+      "solved": 727,
+      "rep": 727,
+      "pos_err": 727,
+      "pos_rel": 727,
+      "bearing": 0,
+      "rot": 727,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_rel_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "bearing_deg_mean_p95": [
+        null,
+        null
+      ],
+      "rot_deg_mean_p95": [
+        0.0249,
+        0.0499
+      ],
+      "success_rate": null
+    },
+    "D": {
+      "matched": 0,
+      "dets": 0,
+      "solved": 839,
+      "rep": 839,
+      "pos_err": 839,
+      "pos_rel": 839,
+      "bearing": 0,
+      "rot": 839,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_rel_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "bearing_deg_mean_p95": [
+        null,
+        null
+      ],
+      "rot_deg_mean_p95": [
+        0.0372,
+        0.0515
+      ],
+      "success_rate": null
+    },
+    "E": {
+      "matched": 0,
+      "dets": 0,
+      "solved": 812,
+      "rep": 812,
+      "pos_err": 812,
+      "pos_rel": 812,
+      "bearing": 0,
+      "rot": 812,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_rel_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "bearing_deg_mean_p95": [
+        null,
+        null
+      ],
+      "rot_deg_mean_p95": [
+        0.0398,
+        0.0586
+      ],
+      "success_rate": null
+    }
+  },
+  "traditional": {
+    "A": {
+      "matched": 193,
+      "dets": 193,
+      "solved": 0,
+      "rep": 193,
+      "pos_err": 193,
+      "pos_rel": 193,
+      "bearing": 193,
+      "rot": 0,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.0674,
+        0.0674
+      ],
+      "pos_rel_mean_p95": [
+        0.0444,
+        0.0444
+      ],
+      "bearing_deg_mean_p95": [
+        1.2661,
+        1.2661
+      ],
+      "rot_deg_mean_p95": [
+        null,
+        null
+      ],
+      "success_rate": 1.0
+    },
+    "B": {
+      "matched": 212,
+      "dets": 212,
+      "solved": 0,
+      "rep": 212,
+      "pos_err": 212,
+      "pos_rel": 212,
+      "bearing": 212,
+      "rot": 0,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.1184,
+        0.5993
+      ],
+      "pos_rel_mean_p95": [
+        0.067,
+        0.3076
+      ],
+      "bearing_deg_mean_p95": [
+        1.3219,
+        1.3789
+      ],
+      "rot_deg_mean_p95": [
+        null,
+        null
+      ],
+      "success_rate": 1.0
+    },
+    "C": {
+      "matched": 236,
+      "dets": 249,
+      "solved": 0,
+      "rep": 236,
+      "pos_err": 236,
+      "pos_rel": 236,
+      "bearing": 236,
+      "rot": 0,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.125,
+        0.5453
+      ],
+      "pos_rel_mean_p95": [
+        0.0726,
+        0.2947
+      ],
+      "bearing_deg_mean_p95": [
+        1.4784,
+        2.1447
+      ],
+      "rot_deg_mean_p95": [
+        null,
+        null
+      ],
+      "success_rate": 0.9478
+    },
+    "D": {
+      "matched": 165,
+      "dets": 166,
+      "solved": 0,
+      "rep": 165,
+      "pos_err": 165,
+      "pos_rel": 165,
+      "bearing": 165,
+      "rot": 0,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.7861,
+        0.7853
+      ],
+      "pos_rel_mean_p95": [
+        0.4814,
+        0.4809
+      ],
+      "bearing_deg_mean_p95": [
+        1.7222,
+        1.7231
+      ],
+      "rot_deg_mean_p95": [
+        null,
+        null
+      ],
+      "success_rate": 0.994
+    },
+    "E": {
+      "matched": 24,
+      "dets": 41,
+      "solved": 0,
+      "rep": 24,
+      "pos_err": 24,
+      "pos_rel": 24,
+      "bearing": 24,
+      "rot": 0,
+      "rep_mean_p95": [
+        0.0,
+        0.0
+      ],
+      "pos_err_mean_p95": [
+        0.6759,
+        0.8718
+      ],
+      "pos_rel_mean_p95": [
+        0.3886,
+        0.5288
+      ],
+      "bearing_deg_mean_p95": [
+        2.0999,
+        2.9279
+      ],
+      "rot_deg_mean_p95": [
+        null,
+        null
+      ],
+      "success_rate": 0.5854
+    }
+  }
+}
