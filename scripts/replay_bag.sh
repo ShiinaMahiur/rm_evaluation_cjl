@@ -78,7 +78,7 @@ if [ "$NO_FOLLOW" != "1" ]; then
   FT_SRC="$SELF_DIR/follow_target.py"; [ -f "$FT_SRC" ] || FT_SRC="$HOME/follow_target.py"
   [ -f "$FT_SRC" ] || { echo "[X] 找不到 follow_target.py"; exit 1; }
   echo "==> 启动 follow_target（图像重心 P 控制 → /rm_gimbal/cmd）"
-  setsid python3 "$FT_SRC" >/tmp/follow_target.log 2>&1 < /dev/null &
+  setsid python3 "$FT_SRC" --topic /bag/image_raw --mode absolute >/tmp/follow_target.log 2>&1 < /dev/null &
   FT=$!
   sleep 1.5
 else
@@ -94,7 +94,8 @@ fi
 
 # ---- 4. 回放 ----
 echo "==> 开始回放，Ctrl+C 结束"
-setsid ros2 bag play "$BAG" -r "$RATE" --read-ahead-queue-size 2000 >/tmp/replay_play.log 2>&1 < /dev/null &
+BAG_REMAP=(--remap /image_raw:=/bag/image_raw /camera_info:=/bag/camera_info /tf:=/bag/tf /gimbal_pose:=/bag/gimbal_pose /odom_pose:=/bag/odom_pose /muzzle_pose:=/bag/muzzle_pose /camera_pose:=/bag/camera_pose)
+setsid ros2 bag play "$BAG" -r "$RATE" --read-ahead-queue-size 2000 "${BAG_REMAP[@]}" >/tmp/replay_play.log 2>&1 < /dev/null &
 PB=$!
 wait "$PB" 2>/dev/null
 echo "==> 回放结束"

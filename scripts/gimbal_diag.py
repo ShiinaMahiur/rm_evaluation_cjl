@@ -15,7 +15,7 @@ import time
 
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped
+import tf2_ros
 from rm_interfaces.msg import GimbalCmd
 
 
@@ -31,12 +31,24 @@ class Diag(Node):
     def __init__(self):
         super().__init__("gimbal_diag")
         self.pub = self.create_publisher(GimbalCmd, "/rm_gimbal/cmd", 10)
-        self.create_subscription(PoseStamped, "/gimbal_pose", self.on_pose, 10)
-        self.cur = None
+        self.buf = tf2_ros.Buffer()
+        self.listener = tf2_ros.TransformListener(self.buf, self)
+        self.cur = None  # odom->gimbal_link 的四元数
 
-    def on_pose(self, msg):
-        p, y = quat_to_pitch_yaw(msg.pose.orientation)
-        self.cur = (y, p + 90.0)  # (yaw_deg, solver_pitch_deg)
+    def update(self):
+        try:
+            t = self.buf.lookup_transform("odom", "gimbal_link", rclpy.time.Time())
+            self.cur = t.transform.rotation
+        except Exception:
+            pass
+
+    @staticmethod
+    def rot_delta_deg(a, b):
+        if a is None or b is None:
+            return 0.0
+        d = abs(a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w)
+        d = max(-1.0, min(1.0, d))
+        return math.degrees(2.0 * math.acos(d))
 
 
 def main():
@@ -46,14 +58,15 @@ def main():
     args = ap.parse_args()
     rclpy.init()
     node = Diag()
-    print("等待 /gimbal_pose ...")
+    print("等待 /tf odom->gimbal_link ...")
     t0 = time.monotonic()
     while node.cur is None and time.monotonic() - t0 < 15:
-        rclpy.spin_once(node, timeout_sec=0.2)
+        rclpy.spin_once(node, timeout_sec=0.2); node.update()
     if node.cur is None:
-        print("[X] 15 秒内没收到 /gimbal_pose（仿真器没跑？）")
+        print("[X] 15 秒内没拿到 gimbal_link 变换（仿真器没跑？）")
         return
-    print(f"初始云台：yaw={node.cur[0]:+.1f}° pitch={node.cur[1]:.1f}°（90=水平）\n")
+    base = node.cur
+    print("初始 gimbal 姿态已记录\n")
     results = []
     for yaw in [float(v) for v in args.yaws.split(",")]:
         cmd = GimbalCmd()
@@ -61,18 +74,14 @@ def main():
         t_end = time.monotonic() + args.duration
         while time.monotonic() < t_end:
             node.pub.publish(cmd)
-            rclpy.spin_once(node, timeout_sec=0.02)
-        # 停发后再读一次（保持最后一帧状态）
-        for _ in range(20):
-            rclpy.spin_once(node, timeout_sec=0.02)
-        y, p = node.cur if node.cur else (float("nan"), float("nan"))
-        results.append((yaw, y))
-        print(f"指令 yaw={yaw:+7.1f}°  →  实际 yaw={y:+7.1f}°  "
-              f"({'✅ 有响应' if abs(y - yaw) < 15 else '❌ 没动/不到'})")
-        time.sleep(0.5)
+            rclpy.spin_once(node, timeout_sec=0.02); node.update()
+        moved = node.rot_delta_deg(base, node.cur)
+        results.append(moved)
+        print(f"指令 yaw={yaw:+7.1f}°  →  云台相对初始转了 {moved:6.1f}°  "
+              f"({'✅ 有响应' if moved > 10 else '❌ 没动'})")
+        time.sleep(0.3)
 
-    moved = any(abs(a - b) > 10 for a, b in results)
-    print("\n结论：", "✅ 指令通路正常（云台有响应）" if moved
+    print("\n结论：", "✅ 指令通路正常（云台有响应）" if max(results) > 10
           else "❌ 云台完全没响应 → /rm_gimbal/cmd 通路有问题（看仿真日志 [diag] trackers）")
     node.destroy_node()
     rclpy.shutdown()
