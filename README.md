@@ -16,7 +16,7 @@
 
 ## 目录
 
-- [1. 环境与复现](#1-环境与复现)
+- [1. 环境与复现](#1-环境与复现)（含 [1.4 一键脚本](#14-一键脚本s0-验收--日常调试)）
 - [2. 整体架构](#2-整体架构)
 - [3. 各阶段方案选型与理由](#3-各阶段方案选型与理由)
 - [4. 参数含义与整定方法](#4-参数含义与整定方法)
@@ -75,6 +75,35 @@ ros2 launch rm_vision_probe vision.launch.py
 
 > **⚠️ 不要在 NTFS 分区上 `colcon build`** —— 符号链接与权限问题会导致构建失败。
 > 请拷到 ext4 本地盘再编译。
+
+### 1.4 一键脚本（S0 验收 / 日常调试）
+
+| 脚本 | 作用 | 对应考核要求 |
+|---|---|---|
+| **`scripts/replay_bag.sh`** | **一键回放 bag + 云台跟随**（自动起仿真器、起图像重心跟踪节点、回放） | ✅ **S0 验收项** |
+| `scripts/run_all.sh` | 一键启动整套系统（仿真器 → 等待图像 → 视觉链路） | ✅ 提交要求「一键运行脚本」 |
+| `scripts/follow_target.py` | 图像重心 + P 控制 → `/rm_gimbal/cmd`（无识别阶段的云台跟随闭环） | S0 链路验证 |
+| `scripts/record_bags.sh` | 录 S0 数据集（5 场景 × 20 s，message 级 zstd） | 数据集采集 |
+| `scripts/bag_view.sh` | 回放 bag 并显示图像窗口（不用 rqt 也行） | 看数据 |
+| `scripts/bag_extract.py` | 压缩 bag 抽帧成 JPG（`SequentialCompressionReader`） | 验证数据 |
+| `scripts/gimbal_diag.py` | 云台指令通路诊断（发绝对角度 ↔ 读 `/gimbal_pose`） | 排障 |
+
+```bash
+# S0 验收演示：一键回放 + 云台跟随
+~/replay_bag.sh /media/$USER/RJ/rm_vision/bags/sceneB
+
+# 只回放不驱动云台
+NO_FOLLOW=1 ~/replay_bag.sh /media/$USER/RJ/rm_vision/bags/sceneB
+
+# 整套系统一键启动
+~/run_all.sh
+
+# 云台指令通路诊断（排查 /rm_gimbal/cmd）
+python3 ~/gimbal_diag.py
+```
+
+> 说明：`follow_target.py` 用「画面里最亮彩色块的重心」做 P 控制，目的是**先证明
+> 视觉 → 云台的闭环链路通**，不依赖识别阶段。S1 之后替换为「识别 → 解算」的真值目标。
 
 ---
 
