@@ -1,0 +1,18 @@
+{
+  "detector": "yolo_v8n_autolabel",
+  "weights": "/home/chen/yolo_runs/s1_armor/weights/best.pt",
+  "imgsz": 640,
+  "conf": 0.25,
+  "val_images": 373,
+  "map50": 0.974,
+  "map50_95": 0.8896,
+  "precision": 0.9383,
+  "recall": 0.8994,
+  "detection_rate": 1.0,
+  "latency_ms_gpu_mean": 7.6,
+  "latency_ms_gpu_p95": 8.141,
+  "latency_ms_cpu_mean": 21.716,
+  "latency_ms_cpu_p95": 21.98,
+  "cpu_samples": 100,
+  "note": "detection_rate = 至少检出 1 个目标的图片占比（conf>=0.25）；训练数据为仿真真值自动标注"
+}

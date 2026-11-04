@@ -149,7 +149,8 @@ ArmorObs(
 |---|---|---|
 | `rm_vision_probe` | `image_probe` | S0 最小节点：订阅图像，打印分辨率与帧率 |
 | `rm_vision_probe` | `gimbal_cmd` | S0 手动云台：发布 `/rm_gimbal/cmd` |
-| `rm_vision_probe` | `detector_traditional` | **S1 识别（传统灯条法，已实现）**：`/detector/armors` + `/detector/debug_image` |
+| `rm_vision_probe` | `detector_traditional` | **S1 传统灯条法**：`/detector/armors` + `/detector/debug_image` |
+| （离线） | `scripts/make_yolo_dataset.py` + `eval_yolo.py` | **S1 深度学习路线**：真值自动标注 → YOLOv8n 训练/评估 |
 | `rm_vision_probe` | `armor_solver` | S2 观测器（待实现） |
 | `rm_vision_probe` | `armor_tracker` | S3 估计器（待实现） |
 | `rm_vision_probe` | `trajectory_planner` | S4 规划器（待实现） |
@@ -167,8 +168,8 @@ ArmorObs(
 | 维度 | 路线 A：传统灯条几何 | 路线 B：深度学习（YOLO） |
 |---|---|---|
 | 方法 | HSV 阈值 → 灯条筛选 → 两两配对（几何 + 数字区校验） → 4 角点 | YOLOv8/v11 检测角点或框 + 分类 |
-| 单帧耗时（CPU, 1440×1080） | **7.44 ms**（≈134 FPS 理论吞吐） | ⬜ 待测（M2） |
-| 检测率（无人工标注的近似指标） | A/B/C 100%，D 83.4%，**E 18.3%** | ⬜ 待测（M2） |
+| 单帧耗时 | **7.44 ms**（CPU, 1440×1080 ≈134 FPS） | **21.7 ms（CPU）/ 7.6 ms（RTX 5060 GPU）** |
+| 检测率（≥1 目标/图） | A/B/C 100%，D 83.4%，**E 18.3%** | **验证集 100%**（conf≥0.25） |
 | 光照敏感度 | 强光/过曝会让灯条糊成一片（阈值法通病） | 待测 |
 | 遮挡敏感度 | 单灯条被挡住即无法配对（D 场景 -16.6%） | 待测 |
 | 标注成本 | 零 | 高（需手工/半自动标注） |
@@ -199,7 +200,17 @@ ArmorObs(
 | 输出 2 | `/detector/debug_image`（`sensor_msgs/Image`，灯条绿框 + 装甲板黄框 + 统计） |
 | 离线评估 | `scripts/eval_detector.py`（在 A~E bag 上跑，输出 `metrics/s1_traditional.json`） |
 
-**选型理由（部分，M2 补完对比后完整写）**
+**深度学习路线（已完成第一版，YOLOv8n）**
+
+- **标注来源：仿真真值自动标注**（`scripts/make_yolo_dataset.py`）
+  用 bag 里的 `/tf`（`map -> armor_*` 真值位姿）+ `/camera_info`，把装甲板（0.15 m × 0.125 m）四角投影到图像 →
+  1851 张图 / 7302 个框，**零人工标注成本**
+- 训练：`yolov8n.pt` 预训练权重，40 epochs，imgsz=640，batch=16，RTX 5060（约 5 分钟）
+- 评估：`scripts/eval_yolo.py` → `metrics/s1_yolo.json`；权重 `models/s1_yolo_v8n_best.pt`（6.2 MB）
+- ⚠️ **注意指标偏乐观**：验证集按"同一段 bag 每 5 帧抽 1 帧"划分，与训练集来自同一批录制（相邻帧高度相似）。
+  跨场景/跨 session 的真实泛化还要再测（M2 做）
+
+**选型理由（对比完成后）**
 
 - 先做传统法：**零标注成本 + 中间结果全可视**，能在 1~2 天内跑通全链路，
   先把 S1→S2 的数据契约（4 角点 + 颜色）定下来
@@ -339,8 +350,8 @@ nvidia-smi --query-gpu=name,utilization.gpu --format=csv
 
 | 代号 | 指标 | 目标 | 实测 | 测量方法 |
 |---|---|---|---|---|
-| I1 | 识别准确率 | ≥ 0.90（传统）/ mAP@0.5 ≥ 0.85（DL） | **检出率 A/B/C=100%、D=83.4%、E=18.3%**（无人工标注的近似指标，见 `metrics/s1_traditional.json`） | 自建测试集（A~E bag，每 5 帧取 1） |
-| I2 | 识别耗时 | ≤ 8 ms（CPU 1440×1080） | **实测 7.44 ms 均值**（p50 7.0 / p95 10.7，不含绘图） | 节点内 `time.perf_counter()` 计检测函数 |
+| I1 | 识别准确率 | ≥ 0.90（传统）/ mAP@0.5 ≥ 0.85（DL） | 传统：检出率 A/B/C=100%、D=83.4%、E=18.3%；**YOLO：mAP@0.5=0.974、mAP@0.5:0.95=0.890、检出率 100%**（见 `metrics/s1_traditional.json`、`metrics/s1_yolo.json`） | 自建测试集（A~E bag，每 5 帧取 1；YOLO 验证集 373 张） |
+| I2 | 识别耗时 | ≤ 8 ms（CPU 1440×1080） | 传统：**7.44 ms**（CPU，p50 7.0/p95 10.7）；YOLO：**21.7 ms（CPU）/ 7.6 ms（GPU）** | 节点内计时 / `model.predict` 端到端计时 |
 | I3 | 解算精度 | 距离误差 ≤ 5%，角误差 ≤ 1° | ⬜ | 与 `/tf` 的 `armor_<id>` 真值对拍 |
 | I4 | 解算稳定性 | 无跳变/翻转 | ⬜ | 大角度斜视场景目视 + 曲线 |
 | I5 | 预测精度 | ≤ 0.08 m @ 100 ms（I5 定义写 200 ms，两个都测） | ⬜ | 预测值与真值对拍 |
@@ -380,7 +391,7 @@ nvidia-smi --query-gpu=name,utilization.gpu --format=csv
 
 | 现象 | 原因 | 解决 |
 |---|---|---|
-| **大角度斜视（E）检出率仅 18.3%** | 斜视时装甲板投影变窄，两个灯条间距/高度比超出几何约束（`gap_ratio` 0.6~3.0、`max_dy` 0.55），配对直接被过滤 | M2：加入角度自适应约束（按灯条倾斜角放松比例）或上深度学习 |
+| **大角度斜视（E）检出率仅 18.3%** | 斜视时装甲板投影变窄，两个灯条间距/高度比超出几何约束（`gap_ratio` 0.6~3.0、`max_dy` 0.55），配对直接被过滤 | **已用 YOLO 路线解决**（同一验证集检出率 100%）；传统法若继续优化可加角度自适应约束 |
 | 单灯条被遮挡就漏检 | 传统法必须有成对灯条才能出装甲板 | M2：单灯补全策略 / DL 直接回归角点 |
 
 ⬜ 待填（每完成一层，记录已知失败场景）
