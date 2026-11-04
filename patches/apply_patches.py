@@ -96,42 +96,60 @@ edit("src/ros2/plugin.rs", [
 # ---------- 3. src/systems/controller.rs ----------
 print("\n[3/5] src/systems/controller.rs")
 edit("src/systems/controller.rs", [
-    # 3a. update_auto_aim_subscription 每帧用 controller 状态覆盖 SubscribeAutoAim，
-    #     两个来源默认都是 false，导致 F5 之外无法开启自瞄订阅
+    # 3a. 让 ControllerState 的 keyboard_auto_aim 默认开启（默认进入自瞄模式），
+    #     但 F5 仍然可以切到手动模式 —— 原版 Default 全是 false，F5 切不到自瞄
+    ("#[derive(Resource, Debug, Default)]\n"
+     "pub struct ControllerState {",
+     "#[derive(Resource, Debug)]\n"
+     "pub struct ControllerState {",
+     "ControllerState 去掉 derive(Default)"),
+
+    ("impl ControllerState {\n"
+     "    pub fn reset_frame(&mut self) {",
+     "impl Default for ControllerState {\n"
+     "    fn default() -> Self {\n"
+     "        // [dsh patch] 自瞄订阅默认开启：外部 ROS2 节点可直接驱动云台；\n"
+     "        // 按 F5 可切到手动模式（方向键控云台），再按一次切回自瞄。\n"
+     "        Self {\n"
+     "            controlled: ControllerInput::default(),\n"
+     "            remote: ControllerInput::default(),\n"
+     "            keyboard_auto_aim: true,\n"
+     "            controlled_chassis_spin: ChassisSpinMode::default(),\n"
+     "            remote_chassis_spin: ChassisSpinMode::default(),\n"
+     "            active_gamepad: None,\n"
+     "            help: ControllerHelp::default(),\n"
+     "        }\n"
+     "    }\n"
+     "}\n"
+     "\n"
+     "impl ControllerState {\n"
+     "    pub fn reset_frame(&mut self) {",
+     "ControllerState 手写 Default：自瞄默认开启",
+     "impl Default for ControllerState"),
+
+    # 3b. auto_aim_active：默认自瞄 + F5 可切 + 环境变量可强制
+    #     （官方原版是 self.keyboard_auto_aim || self.controlled.auto_aim，
+    #      但默认值 false 导致外部节点驱动不了云台）
     ("    pub fn auto_aim_active(&self) -> bool {\n"
      "        self.keyboard_auto_aim || self.controlled.auto_aim\n"
      "    }",
      "    pub fn auto_aim_active(&self) -> bool {\n"
-     "        // [dsh patch] force always-on so external ROS2 nodes can drive the gimbal\n"
-     "        let _ = (self.keyboard_auto_aim, self.controlled.auto_aim);\n"
-     "        true\n"
-     "    }",
-     "auto_aim_active 强制常开（第 1 步）",
-     "DAEDALUS_MANUAL_AIM"),   # 已进入第 2 步也算已改过
-
-    # 3b. 在上面“常开”基础上加手动模式开关：
-    #     设 DAEDALUS_MANUAL_AIM=1 时退回手动（方向键控云台），默认仍是常开
-    ("    pub fn auto_aim_active(&self) -> bool {\n"
-     "        // [dsh patch] force always-on so external ROS2 nodes can drive the gimbal\n"
-     "        let _ = (self.keyboard_auto_aim, self.controlled.auto_aim);\n"
-     "        true\n"
-     "    }",
-     "    pub fn auto_aim_active(&self) -> bool {\n"
-     "        // [dsh patch] 默认强制常开，便于外部 ROS2 节点驱动云台。\n"
-     "        // 设环境变量 DAEDALUS_MANUAL_AIM=1 时退回手动模式（方向键控制云台，\n"
-     "        // 用于人工调视角 / 录制数据集；默认的 ROS 外部控制不受影响）。\n"
-     "        static MANUAL: std::sync::OnceLock<bool> = std::sync::OnceLock::new();\n"
-     "        if *MANUAL.get_or_init(|| {\n"
+     "        // [dsh patch] 自瞄订阅默认开启（见上面的 Default 实现），F5 可在\n"
+     "        // 「自瞄(外部 ROS 驱动) / 手动(方向键)」之间切换。\n"
+     "        // 另外支持环境变量强制指定：\n"
+     "        //   DAEDALUS_MANUAL_AIM=1  -> 强制手动（脚本/录数据时方便）\n"
+     "        //   DAEDALUS_MANUAL_AIM=0  -> 强制自瞄\n"
+     "        static OVERRIDE: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();\n"
+     "        if let Some(force_manual) = *OVERRIDE.get_or_init(|| {\n"
      "            std::env::var(\"DAEDALUS_MANUAL_AIM\")\n"
+     "                .ok()\n"
      "                .map(|v| v == \"1\")\n"
-     "                .unwrap_or(false)\n"
      "        }) {\n"
-     "            return false;\n"
+     "            return !force_manual;\n"
      "        }\n"
-     "        let _ = (self.keyboard_auto_aim, self.controlled.auto_aim);\n"
-     "        true\n"
+     "        self.keyboard_auto_aim || self.controlled.auto_aim\n"
      "    }",
-     "auto_aim_active 支持 DAEDALUS_MANUAL_AIM 手动模式",
+     "auto_aim_active：默认自瞄 + F5 切换 + 环境变量强制",
      "DAEDALUS_MANUAL_AIM"),
 ])
 

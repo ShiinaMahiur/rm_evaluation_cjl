@@ -32,24 +32,31 @@ cargo build --release --features ros2
 | 2 | `src/main.rs` | `SubscribeAutoAim(AtomicBool::new(false))` 默认关闭 | 改为 `true` |
 | 3 | `src/ros2/plugin.rs` | `TextureFormat::bevy_default()` 在 bevy 0.19 不存在 | 改 `Rgba8Utf8Srgb`（见脚本实际值 `Rgba8UnormSrgb`） |
 | 4 | `src/ros2/plugin.rs` | `capture_rune` 中 `one().unwrap()` 场景加载竞态 panic（2 处） | 改为 `match { None => continue }`；`center.get()` 返回 `Result` |
-| 5 | `src/systems/controller.rs` | `auto_aim_active()` 每帧用控制器状态覆盖 `SubscribeAutoAim`，两者默认 false → 外部 ROS2 节点驱动不了云台 | 强制返回 `true` |
+| 5 | `src/systems/controller.rs` | `auto_aim_active()` 每帧覆盖 `SubscribeAutoAim`，而 `keyboard_auto_aim` 默认 false → 外部 ROS2 节点驱动不了云台 | **默认自瞄开启**（手写 `Default`），**F5 仍可切换**自瞄/手动 |
 | 6 | `config.toml` | 默认开阴影/FXAA/preview/livox，帧率低 | 全关（见文件） |
-| 7 | `src/systems/controller.rs` | 第 5 条强制常开后，**方向键控云台也一起失效**（`gimbal_controls()` 开头直接 return） | 加环境变量开关：`DAEDALUS_MANUAL_AIM=1` 时退回手动模式，默认仍常开 |
+| 7 | `src/systems/controller.rs` | 脚本/录数据时想强制进入某一种模式，不想按 F5 | 环境变量 `DAEDALUS_MANUAL_AIM=1` 强制手动 / `=0` 强制自瞄（不设则 F5 控制） |
 | 8 | `src/systems/gimbal_pid.rs` | 排查"发了 `/rm_gimbal/cmd` 云台不动"时看不到 PID 内部状态 | 加 `DAEDALUS_PID_DEBUG=1` 调试日志（目标/当前/误差/输出） |
 
 ### 两个功能开关（默认都不启用，不影响正常使用）
 
 ```bash
-# 手动模式：方向键控制云台（调视角 / 录数据集 / 造考核场景时用）
-DAEDALUS_MANUAL_AIM=1 ./target/release/daedalus
+# 运行时切换（推荐）：默认就是自瞄模式，按 F5 在「自瞄 / 手动」之间切换
+./target/release/daedalus
+#   F5 一次 → 手动模式（方向键控云台）
+#   F5 再一次 → 自瞄模式（外部 ROS /rm_gimbal/cmd 控云台）
+
+# 脚本里强制指定模式（不想按 F5 时）
+DAEDALUS_MANUAL_AIM=1 ./target/release/daedalus   # 强制手动
+DAEDALUS_MANUAL_AIM=0 ./target/release/daedalus   # 强制自瞄
 
 # 云台 PID 调试：打印目标角、当前角、误差、PID 输出速率
 DAEDALUS_PID_DEBUG=1 ./target/release/daedalus
 ```
 
-> 第 7 条的背景：补丁 5"强制常开"解决了外部节点驱动不了云台的问题，但副作用是
-> `gimbal_controls()` 开头的 `if enabled { return; }` 会把**键盘方向键**也一起挡掉。
-> 用环境变量做通道隔离后，两条路径都可用（默认仍保持 ROS 外部控制）。
+> 补丁 5/7 的背景：`gimbal_controls()` 开头有 `if 自瞄开启 { return; }`，
+> 所以自瞄模式和键盘瞄准**互斥**是官方设计（避免人手和算法抢云台）。
+> 原版的问题是 `keyboard_auto_aim` 默认 false → 外部节点驱动不了云台；
+> 把默认值改成 true 后：**默认就是自瞄模式，F5 随时切手动**，两条路径都可用。
 
 ### 第 5 条是最隐蔽的
 
