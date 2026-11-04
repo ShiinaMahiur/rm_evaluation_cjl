@@ -6,6 +6,9 @@
 Daedalus 作者只测过 `talos` feature，`--features ros2` 这条编译路径有 6 处问题，
 必须打补丁才能编译通过。本目录提供一键补丁脚本，保证环境可复现。
 
+除 6 处编译修复外，脚本还包含 **2 处功能补丁**（手动云台开关、PID 调试日志），
+都是可开关的，不影响默认行为。
+
 ## 使用方法
 
 ```bash
@@ -21,7 +24,7 @@ source /opt/ros/humble/setup.bash
 cargo build --release --features ros2
 ```
 
-## 6 处修改
+## 6 处编译修复 + 2 处功能补丁
 
 | # | 文件 | 问题 | 修法 |
 |---|---|---|---|
@@ -31,6 +34,22 @@ cargo build --release --features ros2
 | 4 | `src/ros2/plugin.rs` | `capture_rune` 中 `one().unwrap()` 场景加载竞态 panic（2 处） | 改为 `match { None => continue }`；`center.get()` 返回 `Result` |
 | 5 | `src/systems/controller.rs` | `auto_aim_active()` 每帧用控制器状态覆盖 `SubscribeAutoAim`，两者默认 false → 外部 ROS2 节点驱动不了云台 | 强制返回 `true` |
 | 6 | `config.toml` | 默认开阴影/FXAA/preview/livox，帧率低 | 全关（见文件） |
+| 7 | `src/systems/controller.rs` | 第 5 条强制常开后，**方向键控云台也一起失效**（`gimbal_controls()` 开头直接 return） | 加环境变量开关：`DAEDALUS_MANUAL_AIM=1` 时退回手动模式，默认仍常开 |
+| 8 | `src/systems/gimbal_pid.rs` | 排查"发了 `/rm_gimbal/cmd` 云台不动"时看不到 PID 内部状态 | 加 `DAEDALUS_PID_DEBUG=1` 调试日志（目标/当前/误差/输出） |
+
+### 两个功能开关（默认都不启用，不影响正常使用）
+
+```bash
+# 手动模式：方向键控制云台（调视角 / 录数据集 / 造考核场景时用）
+DAEDALUS_MANUAL_AIM=1 ./target/release/daedalus
+
+# 云台 PID 调试：打印目标角、当前角、误差、PID 输出速率
+DAEDALUS_PID_DEBUG=1 ./target/release/daedalus
+```
+
+> 第 7 条的背景：补丁 5"强制常开"解决了外部节点驱动不了云台的问题，但副作用是
+> `gimbal_controls()` 开头的 `if enabled { return; }` 会把**键盘方向键**也一起挡掉。
+> 用环境变量做通道隔离后，两条路径都可用（默认仍保持 ROS 外部控制）。
 
 ### 第 5 条是最隐蔽的
 
@@ -47,6 +66,11 @@ cargo build --release --features ros2
 
 **注意**：`[capture.depth]` 分辨率不要调太小（如 64x64），
 会导致 ROS2 采集链路不启动，`/image_raw` 直接消失。保持 1280x720。
+
+### 原生 Ubuntu 实测（RTX 5060 Laptop + Vulkan）
+
+`/image_raw` **200~285 Hz**（`present_mode="auto_no_vsync"`，X11/XWayland 下 vsync 不生效），
+`/camera_info`、`/tf` 同频。录 bag 采用「全速录 + message 级 zstd」（约 400 KB/帧）。
 
 ## 协议说明
 

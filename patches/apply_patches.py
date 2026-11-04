@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Daedalus (bevy_robomaster_simulator) 编译修复补丁
-在 --features ros2 编译路径上，原项目有 6 处问题，本脚本全部修掉。
+在 --features ros2 编译路径上，原项目有 6 处问题 + 我们加的 2 处功能补丁，本脚本全部处理。
 可重复运行（幂等）。
 
 用法:  python3 apply_patches.py /path/to/bevy_robomaster_simulator
@@ -25,8 +25,10 @@ def edit(relpath, pairs):
     with open(path, encoding="utf-8") as f:
         s = f.read()
     orig = s
-    for old, new, tag in pairs:
-        if new in s:
+    for item in pairs:
+        old, new, tag = item[0], item[1], item[2]
+        marker = item[3] if len(item) > 3 else new
+        if marker in s:
             print(f"  [已改过] {tag}")
             continue
         n = s.count(old)
@@ -46,7 +48,7 @@ print("Daedalus 补丁  ->", REPO)
 print("=" * 60)
 
 # ---------- 1. main.rs ----------
-print("\n[1/4] src/main.rs")
+print("\n[1/5] src/main.rs")
 edit("src/main.rs", [
     # 1a. cfg(feature="ros2") 块里用到 app，但参数名叫 _app -> 编译错误
     ("fn should_enable_talos_plugin(_app: &App) -> bool {",
@@ -60,7 +62,7 @@ edit("src/main.rs", [
 ])
 
 # ---------- 2. src/ros2/plugin.rs ----------
-print("\n[2/4] src/ros2/plugin.rs")
+print("\n[2/5] src/ros2/plugin.rs")
 edit("src/ros2/plugin.rs", [
     # 2a. TextureFormat::bevy_default() 在 bevy 0.19 里没有这个路径
     ("texture_format: TextureFormat::bevy_default(),",
@@ -92,7 +94,7 @@ edit("src/ros2/plugin.rs", [
 ])
 
 # ---------- 3. src/systems/controller.rs ----------
-print("\n[3/4] src/systems/controller.rs")
+print("\n[3/5] src/systems/controller.rs")
 edit("src/systems/controller.rs", [
     # 3a. update_auto_aim_subscription 每帧用 controller 状态覆盖 SubscribeAutoAim，
     #     两个来源默认都是 false，导致 F5 之外无法开启自瞄订阅
@@ -104,11 +106,64 @@ edit("src/systems/controller.rs", [
      "        let _ = (self.keyboard_auto_aim, self.controlled.auto_aim);\n"
      "        true\n"
      "    }",
-     "auto_aim_active 强制常开"),
+     "auto_aim_active 强制常开（第 1 步）",
+     "DAEDALUS_MANUAL_AIM"),   # 已进入第 2 步也算已改过
+
+    # 3b. 在上面“常开”基础上加手动模式开关：
+    #     设 DAEDALUS_MANUAL_AIM=1 时退回手动（方向键控云台），默认仍是常开
+    ("    pub fn auto_aim_active(&self) -> bool {\n"
+     "        // [dsh patch] force always-on so external ROS2 nodes can drive the gimbal\n"
+     "        let _ = (self.keyboard_auto_aim, self.controlled.auto_aim);\n"
+     "        true\n"
+     "    }",
+     "    pub fn auto_aim_active(&self) -> bool {\n"
+     "        // [dsh patch] 默认强制常开，便于外部 ROS2 节点驱动云台。\n"
+     "        // 设环境变量 DAEDALUS_MANUAL_AIM=1 时退回手动模式（方向键控制云台，\n"
+     "        // 用于人工调视角 / 录制数据集；默认的 ROS 外部控制不受影响）。\n"
+     "        static MANUAL: std::sync::OnceLock<bool> = std::sync::OnceLock::new();\n"
+     "        if *MANUAL.get_or_init(|| {\n"
+     "            std::env::var(\"DAEDALUS_MANUAL_AIM\")\n"
+     "                .map(|v| v == \"1\")\n"
+     "                .unwrap_or(false)\n"
+     "        }) {\n"
+     "            return false;\n"
+     "        }\n"
+     "        let _ = (self.keyboard_auto_aim, self.controlled.auto_aim);\n"
+     "        true\n"
+     "    }",
+     "auto_aim_active 支持 DAEDALUS_MANUAL_AIM 手动模式",
+     "DAEDALUS_MANUAL_AIM"),
 ])
 
-# ---------- 4. config.toml 性能与采集 ----------
-print("\n[4/4] config.toml")
+# ---------- 4. src/systems/gimbal_pid.rs（调试日志，可选） ----------
+print("\n[4/5] src/systems/gimbal_pid.rs")
+edit("src/systems/gimbal_pid.rs", [
+    # 4a. 设 DAEDALUS_PID_DEBUG=1 时打印云台 PID 内部状态（目标/当前/误差/输出），
+    #     用来排查“发了 /rm_gimbal/cmd 但云台不动”这类问题
+    ("    let pid = &config.vehicle.gimbal_pid;\n"
+     "    let yaw_rate = tracker.yaw.step(yaw_error, &pid.yaw, dt);\n"
+     "    let pitch_rate = tracker.pitch.step(pitch_error, &pid.pitch, dt);\n",
+     "    let pid = &config.vehicle.gimbal_pid;\n"
+     "    let yaw_rate = tracker.yaw.step(yaw_error, &pid.yaw, dt);\n"
+     "    let pitch_rate = tracker.pitch.step(pitch_error, &pid.pitch, dt);\n"
+     "\n"
+     "    // [dsh debug] 设 DAEDALUS_PID_DEBUG=1 打印云台 PID 内部状态\n"
+     "    if std::env::var(\"DAEDALUS_PID_DEBUG\").is_ok() {\n"
+     "        let (ty, tp, _) = tracker.target().rotation().to_euler(EulerRot::YXZ);\n"
+     "        let (cy, cp, _) = gimbal_transform.rotation.to_euler(EulerRot::YXZ);\n"
+     "        let (gw_y, gw_p, _) = gimbal_global.rotation().to_euler(EulerRot::YXZ);\n"
+     "        let (m_y, m_p, _) = muzzle.rotation().to_euler(EulerRot::YXZ);\n"
+     "        info!(\n"
+     "            \"[pid] tgt(y={:.3},p={:.3}) cur_local(y={:.3},p={:.3}) gimbal_world(y={:.3},p={:.3}) muzzle(y={:.3},p={:.3}) err=({:.3},{:.3}) rate=({:.2},{:.2})\",\n"
+     "            ty, tp, cy, cp, gw_y, gw_p, m_y, m_p, yaw_error, pitch_error, yaw_rate, pitch_rate\n"
+     "        );\n"
+     "    }\n",
+     "gimbal_pid 调试日志（DAEDALUS_PID_DEBUG=1）",
+     "DAEDALUS_PID_DEBUG"),
+])
+
+# ---------- 5. config.toml 性能与采集 ----------
+print("\n[5/5] config.toml")
 cfg = os.path.join(REPO, "config.toml")
 if os.path.isfile(cfg):
     with open(cfg, encoding="utf-8") as f:
