@@ -1,0 +1,97 @@
+{
+  "detector": "traditional_lightbar",
+  "params": {
+    "v_thresh": 110,
+    "s_thresh": 90,
+    "min_aspect": 1.5,
+    "gap_ratio": [
+      0.6,
+      3.0
+    ],
+    "min_digit": 0.04
+  },
+  "note": "detection_rate = 至少检出 1 块装甲板的帧占比（无人工标注的近似指标）",
+  "results": [
+    {
+      "scene": "A",
+      "frames_processed": 772,
+      "step": 5,
+      "frames_with_detection": 772,
+      "detection_rate": 1.0,
+      "total_armors": 772,
+      "avg_armors_per_frame": 1.0,
+      "latency_ms_mean": 8.754,
+      "latency_ms_p50": 8.74,
+      "latency_ms_p95": 10.682,
+      "capacity_fps": 114.2,
+      "eval_wall_seconds": 31.1,
+      "samples": 3
+    },
+    {
+      "scene": "B",
+      "frames_processed": 741,
+      "step": 5,
+      "frames_with_detection": 741,
+      "detection_rate": 1.0,
+      "total_armors": 843,
+      "avg_armors_per_frame": 1.138,
+      "latency_ms_mean": 7.514,
+      "latency_ms_p50": 7.04,
+      "latency_ms_p95": 10.201,
+      "capacity_fps": 133.1,
+      "eval_wall_seconds": 27.0,
+      "samples": 3
+    },
+    {
+      "scene": "C",
+      "frames_processed": 735,
+      "step": 5,
+      "frames_with_detection": 735,
+      "detection_rate": 1.0,
+      "total_armors": 1008,
+      "avg_armors_per_frame": 1.371,
+      "latency_ms_mean": 7.135,
+      "latency_ms_p50": 6.866,
+      "latency_ms_p95": 8.645,
+      "capacity_fps": 140.2,
+      "eval_wall_seconds": 25.5,
+      "samples": 3
+    },
+    {
+      "scene": "D",
+      "frames_processed": 794,
+      "step": 5,
+      "frames_with_detection": 662,
+      "detection_rate": 0.8338,
+      "total_armors": 662,
+      "avg_armors_per_frame": 0.834,
+      "latency_ms_mean": 6.798,
+      "latency_ms_p50": 6.736,
+      "latency_ms_p95": 7.283,
+      "capacity_fps": 147.1,
+      "eval_wall_seconds": 27.9,
+      "samples": 3
+    },
+    {
+      "scene": "E",
+      "frames_processed": 776,
+      "step": 5,
+      "frames_with_detection": 142,
+      "detection_rate": 0.183,
+      "total_armors": 142,
+      "avg_armors_per_frame": 0.183,
+      "latency_ms_mean": 7.017,
+      "latency_ms_p50": 6.789,
+      "latency_ms_p95": 8.642,
+      "capacity_fps": 142.5,
+      "eval_wall_seconds": 27.6,
+      "samples": 3
+    }
+  ],
+  "summary": {
+    "frames_processed": 3818,
+    "avg_detection_rate": 0.8034,
+    "avg_latency_ms": 7.444,
+    "min_capacity_fps": 114.2
+  }
+}

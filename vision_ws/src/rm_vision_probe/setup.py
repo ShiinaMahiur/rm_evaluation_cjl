@@ -19,6 +19,7 @@ setup(
     entry_points={
         'console_scripts': [
             'image_probe = rm_vision_probe.image_probe:main',
+            'detector_traditional = rm_vision_probe.detector_traditional:main',
             'gimbal_cmd = rm_vision_probe.gimbal_cmd:main',
         ],
     },
