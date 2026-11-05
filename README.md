@@ -88,6 +88,7 @@ ros2 launch rm_vision_probe vision.launch.py
 | `scripts/bag_view.sh` | 回放 bag 并显示图像窗口（不用 rqt 也行） | 看数据 |
 | `scripts/bag_extract.py` | 压缩 bag 抽帧成 JPG（`SequentialCompressionReader`） | 验证数据 |
 | `scripts/gimbal_diag.py` | 云台指令通路诊断（发绝对角度 ↔ 读 `/gimbal_pose`） | 排障 |
+| **`scripts/review_bags.py`** | **S0 数据集自查**：A~E 抽帧拼图 + 场景特征量化（速度/自转/遮挡/视线夹角）并与考核定义对拍 | 数据集验收 |
 
 ```bash
 # S0 验收演示：一键回放 + 云台跟随
@@ -108,6 +109,45 @@ NO_FOLLOW=1 ~/replay_bag.sh /media/$USER/RJ/rm_vision/bags/sceneB
 # 云台指令通路诊断（排查 /rm_gimbal/cmd）
 python3 ~/gimbal_diag.py
 ```
+
+### 1.5 怎么自己看 / 审查 A~E 的 bag
+
+```bash
+BAGS=/media/$USER/RJ/rm_vision/bags
+
+# 方式 1（推荐）：自动审查，出量化报告 + 8 帧拼图
+python3 /media/$USER/RJ/rm_evaluation_cjl/scripts/review_bags.py
+#   -> metrics/s0_review.json
+#   -> metrics/s0_review/scene{A..E}_sheet.jpg   （拼图，绿框=真值装甲板）
+
+# 方式 2：实时看回放（开窗口）
+~/bag_view.sh $BAGS/sceneB            # 正常速度
+RATE=0.5 EVERY=2 ~/bag_view.sh $BAGS/sceneB   # 半速、每 2 帧显示 1 帧
+# 窗口里按 q/ESC 退出
+
+# 方式 3：ROS 原生（看图 / 看 TF）
+source /opt/ros/humble/setup.bash
+ros2 bag play $BAGS/sceneA --loop --rate 0.5 &
+rqt_image_view /image_raw             # 看图像
+rviz2                                 # 看 TF（Fixed Frame 设 map，加 TF 显示）
+
+# 方式 4：只抽帧成图片（不播）
+python3 ~/bag_extract.py $BAGS/sceneA --every 120   # 每 120 帧存 1 张
+```
+
+**⚠️ 2026-11-05 自查结论（`metrics/s0_review.json`，实测不是推测）**
+
+| 场景 | 考核定义 | 实测 | 判定 |
+|---|---|---|---|
+| A 静止 | 3 / 6 / 10 m 三档 | 目标全程静止 ✓，但距离只有 **1.5~2.4 m**（单档） | ⚠️ 覆盖不足 |
+| B 平移 | ~2 m/s 匀速平移 | 目标世界系速度最大 **0.01 m/s**（基本没动） | ❌ **不符合** |
+| C 自转+平移 | 自转 + 平移 | 自转 **423 °/s** ✓；底盘平移很小（22 s 净位移 ~0.5 m） | ⚠️ 平移偏弱 |
+| D 遮挡 | 遮挡 0.5 s 后重现 | 内部遮挡断档 **3.54 s** | ⚠️ 比要求长（更难） |
+| E 斜视 | 夹角 > 60° | 视线夹角中位 **59.0°**（最大可到 88°） | ⚠️ 临界 |
+
+> 说明：这些 bag 是 11-03 手工操作录的（`record_bags.sh` 是之后才写的自动化版），所以和考核定义有偏差。
+> A 的 3/6/10 m、B 的 2 m/s 平移需要**重录**才能支撑对应指标；当前 S2/S3 的数字要按实际数据标注距离与速度。
+
 
 > 说明：`follow_target.py` 用「画面里最亮彩色块的重心」做 P 控制，目的是**先证明
 > 视觉 → 云台的闭环链路通**，不依赖识别阶段。S1 之后替换为「识别 → 解算」的真值目标。
