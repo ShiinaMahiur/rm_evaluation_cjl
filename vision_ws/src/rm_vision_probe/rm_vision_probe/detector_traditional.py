@@ -20,6 +20,7 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import String
 
 from .detector import DetectorParams, detect_image, draw_debug
+from .solver import refine_corners
 
 
 class DetectorNode(Node):
@@ -30,6 +31,7 @@ class DetectorNode(Node):
         self.declare_parameter("max_armors", 8)
         self.declare_parameter("v_thresh", 110)
         self.declare_parameter("s_thresh", 90)
+        self.declare_parameter("subpixel", True)
 
         self.params = DetectorParams(
             max_armors=int(self.get_parameter("max_armors").value),
@@ -68,7 +70,8 @@ class DetectorNode(Node):
         else:
             img = img.copy()
 
-        result = detect_image(img, self.params)
+        result = detect_image(img, self.params,
+                              subpixel=bool(self.get_parameter("subpixel").value))
         cost_ms = (time.perf_counter() - t0) * 1000.0
 
         self.frames += 1
@@ -86,7 +89,13 @@ class DetectorNode(Node):
                 "stamp": {"sec": msg.header.stamp.sec, "nanosec": msg.header.stamp.nanosec},
                 "frame_id": msg.header.frame_id,
                 "armors": [
-                    {"color": a["color"], "corners": a["corners"],
+                    {"color": a["color"],
+                     # 直接发「标定后的板外沿四角」（亚像素 + 灯条→板尺度展开），
+                     # 下游 armor_solver 不需要再猜板尺寸，节点与离线评估口径一致
+                     "corners": [[round(float(u), 2), round(float(v), 2)]
+                                 for u, v in refine_corners(a, True)],
+                     "calibrated": True,
+                     "subpixel": a.get("subpix") is not None,
                      "center": [round(v, 2) for v in a["center"]],
                      "score": a["score"], "digit_score": a["digit_score"]}
                     for a in result["armors"]

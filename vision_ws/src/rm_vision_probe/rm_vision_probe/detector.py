@@ -74,6 +74,104 @@ def _digit_score(img, x1, x2, y1, y2):
     return float(digit.mean())
 
 
+PLATE_ASPECT = 0.125 / 0.15   # 装甲板高/宽（与 solver.py 的 PLATE_W/PLATE_H 一致）
+
+
+def _cross_edges(prof, core_lo, core_hi):
+    """1D 亮度剖面 → 50% 电平处的左右亚像素边界（线性插值）"""
+    bg_parts = [prof[:max(core_lo, 0)], prof[core_hi + 1:]]
+    bg_arr = np.concatenate(bg_parts) if any(x.size for x in bg_parts) else np.array([])
+    bg = float(np.median(bg_arr)) if bg_arr.size >= 2 else float(np.percentile(prof, 5))
+    peak = float(np.percentile(prof, 95))
+    if peak - bg < 8.0:
+        return None
+    thr = bg + 0.5 * (peak - bg)
+    left = right = None
+    for i in range(max(core_lo, 1), core_hi + 1):
+        if prof[i] >= thr and prof[i - 1] < thr:
+            left = i - 1 + (thr - prof[i - 1]) / max(prof[i] - prof[i - 1], 1e-6)
+            break
+    for i in range(core_hi, core_lo, -1):
+        if prof[i] >= thr and prof[i + 1] < thr:
+            right = i + (prof[i] - thr) / max(prof[i] - prof[i + 1], 1e-6)
+            break
+    if left is None or right is None:
+        return None
+    return left, right
+
+
+def _lamp_subpix(v, mask, rect):
+    """单根灯条亚像素定位 → (cx, cy, w_sub, h_sub)，失败返回 None
+
+    做法：取灯条内部行（列）的 V 通道平均亮度剖面，在「背景亮度 + 50%×峰值差」
+    处线性插值找边缘。相比整像素外接矩形，边缘误差从 ±0.5 px 降到 ~±0.1 px，
+    对边缘模糊/半饱和像素更稳。
+    """
+    x, y, w, h = rect
+    m = 4
+    x0, y0 = max(x - m, 0), max(y - m, 0)
+    x1, y1 = min(x + w + m, mask.shape[1]), min(y + h + m, mask.shape[0])
+    if x1 - x0 < 8 or y1 - y0 < 8:
+        return None
+    msub = mask[y0:y1, x0:x1] > 0
+    if msub.sum() < 8:
+        return None
+    vsub = np.asarray(v[y0:y1, x0:x1], dtype=np.float32)
+
+    row_hits = msub.sum(axis=1)
+    col_hits = msub.sum(axis=0)
+    if row_hits.max() < 2 or col_hits.max() < 2:
+        return None
+    rows = np.where(row_hits >= max(2.0, 0.5 * row_hits.max()))[0]
+    cols = np.where(col_hits >= max(2.0, 0.5 * col_hits.max()))[0]
+    if rows.size < 2 or cols.size < 2:
+        return None
+
+    ex = _cross_edges(vsub[rows].mean(axis=0), int(cols[0]), int(cols[-1]))
+    ey = _cross_edges(vsub[:, cols].mean(axis=1), int(rows[0]), int(rows[-1]))
+    if ex is None or ey is None:
+        return None
+
+    w_sub, h_sub = ex[1] - ex[0], ey[1] - ey[0]
+    # 合理性校验，防极端背景下把整片区域当灯条
+    if not (0.5 * w <= w_sub <= 1.8 * w) or not (0.5 * h <= h_sub <= 1.8 * h):
+        return None
+    if w_sub < 2.0 or h_sub < 4.0:
+        return None
+    return (x0 + (ex[0] + ex[1]) / 2.0, y0 + (ey[0] + ey[1]) / 2.0, w_sub, h_sub)
+
+
+def _subpix_quad(v, mask, lights):
+    """两根灯条 → 装甲板亚像素四角（直接用灯条自身的亚像素宽高，带倾斜）
+
+    返回的四个角点顺序：左上 → 右上 → 右下 → 左下，与 solver.OBJ_PTS 对应。
+    与旧方案的区别：不再强行用「宽度 × 板宽高比」重建高度，而是用两根灯条各自的
+    亚像素宽高，避免灯条高度与装甲板高度不一致带来的系统性距离偏差。
+    """
+    if not lights or len(lights) != 2:
+        return None
+    a = _lamp_subpix(v, mask, lights[0])
+    b = _lamp_subpix(v, mask, lights[1])
+    if a is None or b is None:
+        return None
+    lcx, lcy, lw, lh = a
+    rcx, rcy, rw, rh = b
+    xl, xr = lcx - lw / 2.0, rcx + rw / 2.0
+    w_rect = (lights[1][0] + lights[1][2]) - lights[0][0]
+    if not (0.7 * w_rect <= xr - xl <= 1.3 * w_rect):
+        return None
+    # 每根灯条用自己的高度（左灯控制左边两点，右灯控制右边两点）
+    return {
+        "xl": float(xl), "xr": float(xr),
+        "ycl": float(lcy), "ycr": float(rcy),
+        "hl": float(lh), "hr": float(rh),
+        "corners": np.array([
+            [xl, lcy - lh / 2.0], [xr, rcy - rh / 2.0],
+            [xr, rcy + rh / 2.0], [xl, lcy + lh / 2.0],
+        ], dtype=np.float64),
+    }
+
+
 def _pair(img, lights, p):
     cand = []
     for i in range(len(lights)):
@@ -117,16 +215,27 @@ def _pair(img, lights, p):
     return armors
 
 
-def detect_image(img_bgr, params=None):
-    """输入 BGR 图，返回 {"lights": {"blue": [...], "red": [...]}, "armors": [...]}"""
+def detect_image(img_bgr, params=None, subpixel=True):
+    """输入 BGR 图，返回 {"lights": {"blue": [...], "red": [...]}, "armors": [...]}
+
+    subpixel=True 时对每块装甲板做灯条亚像素边缘拟合，结果放在 a["subpix"]
+    （键 xl/xr/ycl/ycr/corners）。后续 PnP 用 a["subpix"]["corners"] 精度更高；
+    拟合失败则不影响原始 corners，自动退化为整像素方案。
+    """
     p = params or DetectorParams()
     masks = _masks(img_bgr, p)
+    v = (cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)[:, :, 2].astype(np.float32)
+         if subpixel else None)
     all_armors, all_lights = [], {}
     for color, mask in masks.items():
         ls = _lights(mask, p)
         all_lights[color] = ls
         for a in _pair(img_bgr, ls, p):
             a["color"] = color
+            if v is not None:
+                q = _subpix_quad(v, mask, a["lights"])
+                if q is not None:
+                    a["subpix"] = q
             all_armors.append(a)
     all_armors.sort(key=lambda a: a["score"], reverse=True)
     return {"lights": all_lights, "armors": all_armors}
@@ -141,8 +250,13 @@ def draw_debug(img_bgr, result, params=None):
             cv2.rectangle(d, (x, y), (x + w, y + h), (0, 255, 0), 2)
     for a in result["armors"]:
         color = (0, 255, 255) if a["color"] == "blue" else (0, 0, 255)
-        pts = np.array(a["corners"], np.int32)
-        cv2.polylines(d, [pts], True, color, 3)
+        if a.get("subpix") is not None:
+            pts = np.round(a["subpix"]["corners"]).astype(np.int32)
+        else:
+            pts = np.array(a["corners"], np.int32)
+        cv2.polylines(d, [pts], True, color, 2)
+        if a.get("subpix") is not None:   # 亚像素结果用细线再画一遍（虚线对比）
+            cv2.polylines(d, [np.array(a["corners"], np.int32)], True, (0, 0, 255), 1)
         cx, cy = int(a["center"][0]), int(a["center"][1])
         cv2.putText(d, f'{a["color"]} d={a["digit_score"]:.2f}', (cx - 60, cy),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)

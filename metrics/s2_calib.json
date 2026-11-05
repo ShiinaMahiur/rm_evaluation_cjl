@@ -1,0 +1,36 @@
+{
+  "pairs": 184,
+  "scenes": [
+    "A",
+    "B"
+  ],
+  "step": 40,
+  "before": {
+    "corner_mean_px": 35.86,
+    "corner_p95_px": 38.88,
+    "center_mean_px": 31.64,
+    "quad_perm_hist": {
+      "0": 184
+    },
+    "n": 184
+  },
+  "after": {
+    "corner_mean_px": 6.32,
+    "corner_p95_px": 6.7,
+    "center_mean_px": 0.68,
+    "quad_perm_hist": {
+      "0": 184
+    },
+    "n": 184
+  },
+  "constants": {
+    "MARKER_TO_PLATE_D": [
+      -0.02922,
+      0.02052,
+      -0.02369
+    ],
+    "DET_SCALE_X": 1.0421,
+    "DET_SCALE_Y": 2.2508,
+    "residual_rms_px": 6.518
+  }
+}

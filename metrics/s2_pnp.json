@@ -4,16 +4,20 @@
     0.125
   ],
   "pnp_flag": "SOLVEPNP_IPPE",
+  "gt_ref": "plate",
+  "subpixel": true,
+  "calibrated": true,
+  "step": 20,
   "results": {
     "A": {
       "matched": 0,
       "dets": 0,
-      "solved": 579,
-      "rep": 579,
-      "pos_err": 579,
-      "pos_rel": 579,
+      "solved": 1544,
+      "rep": 1544,
+      "pos_err": 1544,
+      "pos_rel": 1544,
       "bearing": 0,
-      "rot": 579,
+      "rot": 1544,
       "rep_mean_p95": [
         0.0,
         0.0
@@ -31,20 +35,20 @@
         null
       ],
       "rot_deg_mean_p95": [
-        0.0131,
-        0.0394
+        0.0173,
+        0.0451
       ],
       "success_rate": null
     },
     "B": {
       "matched": 0,
       "dets": 0,
-      "solved": 719,
-      "rep": 719,
-      "pos_err": 719,
-      "pos_rel": 719,
+      "solved": 1488,
+      "rep": 1488,
+      "pos_err": 1488,
+      "pos_rel": 1488,
       "bearing": 0,
-      "rot": 719,
+      "rot": 1488,
       "rep_mean_p95": [
         0.0,
         0.0
@@ -62,20 +66,20 @@
         null
       ],
       "rot_deg_mean_p95": [
-        0.0227,
-        0.0493
+        0.0256,
+        0.0539
       ],
       "success_rate": null
     },
     "C": {
       "matched": 0,
       "dets": 0,
-      "solved": 727,
-      "rep": 727,
-      "pos_err": 727,
-      "pos_rel": 727,
+      "solved": 1354,
+      "rep": 1354,
+      "pos_err": 1354,
+      "pos_rel": 1354,
       "bearing": 0,
-      "rot": 727,
+      "rot": 1354,
       "rep_mean_p95": [
         0.0,
         0.0
@@ -93,20 +97,20 @@
         null
       ],
       "rot_deg_mean_p95": [
-        0.0249,
-        0.0499
+        0.027,
+        0.0545
       ],
       "success_rate": null
     },
     "D": {
       "matched": 0,
       "dets": 0,
-      "solved": 839,
-      "rep": 839,
-      "pos_err": 839,
-      "pos_rel": 839,
+      "solved": 1180,
+      "rep": 1180,
+      "pos_err": 1180,
+      "pos_rel": 1180,
       "bearing": 0,
-      "rot": 839,
+      "rot": 1180,
       "rep_mean_p95": [
         0.0,
         0.0
@@ -124,20 +128,20 @@
         null
       ],
       "rot_deg_mean_p95": [
-        0.0372,
-        0.0515
+        0.0376,
+        0.056
       ],
       "success_rate": null
     },
     "E": {
       "matched": 0,
       "dets": 0,
-      "solved": 812,
-      "rep": 812,
-      "pos_err": 812,
-      "pos_rel": 812,
+      "solved": 1339,
+      "rep": 1339,
+      "pos_err": 1339,
+      "pos_rel": 1339,
       "bearing": 0,
-      "rot": 812,
+      "rot": 1339,
       "rep_mean_p95": [
         0.0,
         0.0
@@ -155,8 +159,8 @@
         null
       ],
       "rot_deg_mean_p95": [
-        0.0398,
-        0.0586
+        0.0399,
+        0.0572
       ],
       "success_rate": null
     }
@@ -170,152 +174,152 @@
       "pos_err": 193,
       "pos_rel": 193,
       "bearing": 193,
-      "rot": 0,
+      "rot": 193,
       "rep_mean_p95": [
-        0.0,
-        0.0
+        2.0619,
+        2.0619
       ],
       "pos_err_mean_p95": [
-        0.0674,
-        0.0674
+        0.0115,
+        0.0115
       ],
       "pos_rel_mean_p95": [
-        0.0444,
-        0.0444
+        0.0077,
+        0.0077
       ],
       "bearing_deg_mean_p95": [
-        1.2661,
-        1.2661
+        0.0406,
+        0.0406
       ],
       "rot_deg_mean_p95": [
-        null,
-        null
+        25.0753,
+        25.0753
       ],
       "success_rate": 1.0
     },
     "B": {
-      "matched": 212,
+      "matched": 186,
       "dets": 212,
       "solved": 0,
-      "rep": 212,
-      "pos_err": 212,
-      "pos_rel": 212,
-      "bearing": 212,
-      "rot": 0,
+      "rep": 186,
+      "pos_err": 186,
+      "pos_rel": 186,
+      "bearing": 186,
+      "rot": 186,
       "rep_mean_p95": [
-        0.0,
-        0.0
+        1.392,
+        2.0619
       ],
       "pos_err_mean_p95": [
-        0.1184,
-        0.5993
+        0.0234,
+        0.0853
       ],
       "pos_rel_mean_p95": [
-        0.067,
-        0.3076
+        0.0158,
+        0.0576
       ],
       "bearing_deg_mean_p95": [
-        1.3219,
-        1.3789
+        0.0499,
+        0.0806
       ],
       "rot_deg_mean_p95": [
-        null,
-        null
+        24.2163,
+        25.8878
       ],
-      "success_rate": 1.0
+      "success_rate": 0.8774
     },
     "C": {
-      "matched": 236,
+      "matched": 184,
       "dets": 249,
       "solved": 0,
-      "rep": 236,
-      "pos_err": 236,
-      "pos_rel": 236,
-      "bearing": 236,
-      "rot": 0,
+      "rep": 184,
+      "pos_err": 184,
+      "pos_rel": 184,
+      "bearing": 184,
+      "rot": 184,
       "rep_mean_p95": [
-        0.0,
-        0.0
+        0.5732,
+        1.0918
       ],
       "pos_err_mean_p95": [
-        0.125,
-        0.5453
+        0.0282,
+        0.0775
       ],
       "pos_rel_mean_p95": [
-        0.0726,
-        0.2947
+        0.019,
+        0.0523
       ],
       "bearing_deg_mean_p95": [
-        1.4784,
-        2.1447
+        0.1267,
+        0.1758
       ],
       "rot_deg_mean_p95": [
-        null,
-        null
+        22.4351,
+        24.9455
       ],
-      "success_rate": 0.9478
+      "success_rate": 0.739
     },
     "D": {
-      "matched": 165,
+      "matched": 0,
       "dets": 166,
       "solved": 0,
-      "rep": 165,
-      "pos_err": 165,
-      "pos_rel": 165,
-      "bearing": 165,
+      "rep": 0,
+      "pos_err": 0,
+      "pos_rel": 0,
+      "bearing": 0,
       "rot": 0,
       "rep_mean_p95": [
-        0.0,
-        0.0
+        null,
+        null
       ],
       "pos_err_mean_p95": [
-        0.7861,
-        0.7853
+        null,
+        null
       ],
       "pos_rel_mean_p95": [
-        0.4814,
-        0.4809
+        null,
+        null
       ],
       "bearing_deg_mean_p95": [
-        1.7222,
-        1.7231
+        null,
+        null
       ],
       "rot_deg_mean_p95": [
         null,
         null
       ],
-      "success_rate": 0.994
+      "success_rate": 0.0
     },
     "E": {
-      "matched": 24,
+      "matched": 0,
       "dets": 41,
       "solved": 0,
-      "rep": 24,
-      "pos_err": 24,
-      "pos_rel": 24,
-      "bearing": 24,
+      "rep": 0,
+      "pos_err": 0,
+      "pos_rel": 0,
+      "bearing": 0,
       "rot": 0,
       "rep_mean_p95": [
-        0.0,
-        0.0
+        null,
+        null
       ],
       "pos_err_mean_p95": [
-        0.6759,
-        0.8718
+        null,
+        null
       ],
       "pos_rel_mean_p95": [
-        0.3886,
-        0.5288
+        null,
+        null
       ],
       "bearing_deg_mean_p95": [
-        2.0999,
-        2.9279
+        null,
+        null
       ],
       "rot_deg_mean_p95": [
         null,
         null
       ],
-      "success_rate": 0.5854
+      "success_rate": 0.0
     }
   }
 }
