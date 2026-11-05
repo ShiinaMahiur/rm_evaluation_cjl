@@ -88,6 +88,25 @@ ok "D 盘可用，剩余 ${FREE_GB} GB，输出目录 $BAGS_ROOT"
 #   实测 1253 帧 → 48 MB（约 38 KB/帧），20 s 单场景 ≈ 140 MB，5 场景 ≈ 0.7 GB。
 #   用 **message 级压缩**（不是 file 级）：播放/抽帧时按消息解压，不会产生几十 GB 临时文件。
 # 需要标准 60 Hz 数据集时，可改用 scripts/bag_throttle_record.py 限频录制。
+# 车辆速度上限来自 config.toml 的 [vehicle] max_speed（仿真支持热重载）。
+# 数字键控只有"全油门"，靠按键没法稳定 2 m/s；但把 max_speed 直接设成 2.0，
+# 按住键就会停在 2 m/s——这是录 B 场景"匀速平移"的正解。
+CFG_BAK="$CFG.bak.record"
+[ -f "$CFG_BAK" ] || cp "$CFG" "$CFG_BAK"
+set_vehicle_speed() {
+  local v="$1"
+  python3 - "$CFG" "$v" <<'PYV'
+import re, sys
+p, v = sys.argv[1], sys.argv[2]
+s = open(p, encoding='utf-8').read()
+s2 = re.sub(r'(?m)^max_speed\s*=\s*[0-9.]+', f'max_speed = {v}', s, count=1)
+if s2 != s:
+    open(p, 'w', encoding='utf-8').write(s2)
+    print(f"  [vehicle] max_speed → {v} m/s")
+PYV
+}
+restore_vehicle_speed() { [ -f "$CFG_BAK" ] && cp "$CFG_BAK" "$CFG" && rm -f "$CFG_BAK" || true; }
+
 say "2/6 录制配置（关 preview；present_mode 恢复不限帧）"
 grep -q '^present_mode = "auto_vsync"' "$CFG" && sed -i 's/^present_mode = "auto_vsync"/present_mode = "auto_no_vsync"/' "$CFG" && ok "present_mode → auto_no_vsync"
 python3 - "$CFG" <<'PYCFG'
@@ -110,7 +129,7 @@ if [ "$KEEP_SIM" = "1" ] && pgrep -x daedalus >/dev/null; then
     # KEEP_SIM 模式下不要把用户的仿真器杀掉
     trap - EXIT
     cleanup_sim() { :; }
-    trap cleanup_sim EXIT
+    trap "cleanup_sim; restore_vehicle_speed" EXIT
   fi
 else
   say "3/6 启动仿真器（XWayland 后端，xdotool 才能发按键）"
@@ -120,7 +139,7 @@ else
   SIM_PID=$!
   cleanup_sim() { kill -TERM -"$SIM_PID" 2>/dev/null || kill -TERM "$SIM_PID" 2>/dev/null || true
                   sleep 1; pkill -x daedalus 2>/dev/null || true; }
-  trap "cleanup_sim; restore_xrepeat" EXIT
+  trap "cleanup_sim; restore_xrepeat; restore_vehicle_speed" EXIT
 fi
 
 wait_image() {
@@ -203,7 +222,7 @@ scenario_A() {   # 静止：三档距离 3 / 6 / 10 m，每档静止 DUR/3 秒
 }
 scenario_B() {   # 匀速平移：闭环控制目标速度 ~2 m/s（来回平移，保持不出画）
   ok "B：闭环控制目标速度 2 m/s，持续 ${DUR}s"
-  run_driver --mode speed --target 2.0 --duration "$DUR" --span 2.5 \
+  run_driver --mode speed --target "${VEH_SPEED_B:-2.0}" --duration "$DUR" --span 2.2 \
     || warn "闭环驱动失败；手动退化为按住 J：$(keydown j; sleep "$DUR"; keyup j; echo ok)"
 }
 scenario_C() {   # 自转 + 平移：假人底盘自转（U 切换）+ 闭环 ~1.5 m/s 平移
@@ -235,6 +254,13 @@ scenario_E() {   # 大角度斜视：先横移拉开视角，再让假人底盘�
 run_scene() {
   local name="$1" desc="$2" fn="$3"
   local out="$BAGS_ROOT/scene$name"
+  # 按场景设置车辆速度上限（A/B 用 2 m/s 才能稳定匀速；C 用 1.5）
+  case "$name" in
+    A) set_vehicle_speed "${VEH_SPEED_A:-2.0}" ;;
+    B) set_vehicle_speed "${VEH_SPEED_B:-2.0}" ;;
+    C) set_vehicle_speed "${VEH_SPEED_C:-1.5}" ;;
+    *) set_vehicle_speed "${VEH_SPEED_OTHER:-6.0}" ;;
+  esac
   if [ "${RESTART_PER_SCENE:-1}" = "1" ] && [ "${KEEP_SIM:-0}" != "1" ]; then
     start_sim_fresh
   fi

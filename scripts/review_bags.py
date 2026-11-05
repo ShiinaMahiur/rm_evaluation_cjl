@@ -321,6 +321,7 @@ def review_scene(bag_dir, scene, sample_hz, out_dir, sheet_n=8):
         return max(vals) if vals else 0.0
 
     max_speed = g(lambda st: st["speed_mps"]["median"] if st["speed_mps"] else None)
+    max_cruise = g(lambda st: st["cruise_speed_mps"]["median"] if st.get("cruise_speed_mps") else None)
     max_yaw = g(lambda st: st["yaw_rate_dps"]["median"] if st["yaw_rate_dps"] else None)
     max_occl = g(lambda st: max([e["dur_s"] for e in st["occlusion_events"]], default=None))
     max_angle = g(lambda st: st["view_angle_deg"]["median"] if st["view_angle_deg"] else None)
@@ -353,10 +354,11 @@ def review_scene(bag_dir, scene, sample_hz, out_dir, sheet_n=8):
         detail = (f"画面内目标距离覆盖 {min(all_d):.1f}~{max(all_d):.1f} m；"
                   f"3 m±0.5 有={covered(3.0)}，6 m±0.5 有={covered(6.0)}（10 m 受仿真场地限制）")
     elif scene == "B":
-        ok = 1.0 <= max_speed <= 3.5
-        verdict = (f"符合（平移 {max_speed:.2f} m/s）" if ok
-                   else f"可疑（最大速度仅 {max_speed:.2f} m/s）")
-        detail = f"实测最大速度 {max_speed:.2f} m/s（要求 ~2 m/s）"
+        ok = 1.5 <= max_cruise <= 2.6
+        verdict = (f"符合（巡航 {max_cruise:.2f} m/s）" if ok
+                   else f"可疑（巡航 {max_cruise:.2f} m/s，要求 ~2）")
+        detail = (f"巡航速度中位 {max_cruise:.2f} m/s（只统计在动的采样）；"
+                  f"含掉头的全程中位 {max_speed:.2f} m/s")
     elif scene == "C":
         ok = max_yaw > 15
         verdict = (f"符合（自转 {max_yaw:.0f} °/s）" if ok
@@ -406,6 +408,7 @@ def review_scene(bag_dir, scene, sample_hz, out_dir, sheet_n=8):
         "target_armor": tgt, "target": target,
         "scene_metrics": {
             "max_speed_mps": round(max_speed, 3),
+            "cruise_speed_mps": round(max_cruise, 3),
             "max_yaw_rate_dps": round(max_yaw, 2),
             "max_occlusion_s": round(max_occl, 2),
             "max_view_angle_deg": round(max_angle, 2),
