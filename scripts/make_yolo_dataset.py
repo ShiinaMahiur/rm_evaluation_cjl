@@ -3,24 +3,31 @@
 """make_yolo_dataset.py —— 用仿真真值（/tf）自动生成 YOLO 检测数据集
 
 思路（为什么不需要手工标注）：
-  bag 里录了 /tf，其中 `map -> armor_6..17` 是每块装甲板的**真值位姿**。
-  装甲板尺寸由仿真 marker 定义：宽 0.15 m、高 0.125 m、厚 0.03 m。
-  把装甲板四角投影到图像平面（用 /camera_info 的 K + 相机外参），就得到
-  精确标注框 —— 不花一分钟人工标注。
+  bag 里录了 /tf，其中 `map -> armor_6..17` 是每块装甲板的 marker 位姿。
+  把装甲板四角投影到图像平面（相机内参 + 相机外参），就得到精确标注框 —— 零人工标注。
 
-输出（YOLO 格式，单类 "armor"）：
-  <out>/images/*.jpg        原图
-  <out>/labels/*.txt        class cx cy w h（归一化）
-  <out>/debug/*.jpg         标注可视化（抽样）
-  <out>/dataset.yaml        ultralytics 训练配置
+⚠️ 2026-11-05 修正（重要）
+  仿真 `/tf` 的 `armor_*` 是 **marker 立方体中心**（0.03×0.15×0.125，见
+  `src/ros2/plugin.rs`），板面在 marker 局部 **x-y 平面**，且与可见板面中心相差
+  4.24 cm。旧版本按 y-z 平面投影、把 marker 原点当板中心，标注框画在了装甲板
+  **底部的地面上**（错的）。现在统一走 `solver.plate_pose_from_marker()`，
+  与 S2 解算的真值定义完全一致。
+
+  另外加了「图像证据」过滤：框内必须有灯条亮像素，否则说明这块板被遮挡/背面不可见，
+  不生成标注（避免把遮挡物标成装甲板）。
+
+数据划分
+  `--val-scenes` 指定验证场景（默认 E，跨场景验证，比随机抽帧更能反映泛化）。
+  输出 images/ labels/ debug/ train.txt val.txt dataset.yaml stats.json。
 
 用法：
-  python3 make_yolo_dataset.py --scenes A B C D E --step 10
+  python3 make_yolo_dataset.py --scenes A B C D E --step 10 --val-scenes E
 """
 import argparse
 import glob
 import json
 import os
+import sys
 
 import cv2
 import numpy as np
@@ -29,6 +36,11 @@ import yaml
 from rclpy.serialization import deserialize_message
 from sensor_msgs.msg import Image, CameraInfo
 from tf2_msgs.msg import TFMessage
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(_HERE, "..", "vision_ws", "src", "rm_vision_probe"))
+
+from rm_vision_probe.solver import OBJ_PTS, plate_pose_from_marker  # noqa: E402
 
 
 def open_reader(bag_dir):
@@ -76,12 +88,29 @@ def compose(d, chain):
     return T
 
 
-def project(K, p_cam):
+def project_pt(K, p_cam):
     fx, fy, cx, cy = K[0], K[4], K[2], K[5]
     x, y, z = p_cam
     if z <= 0.05:
         return None
     return (fx * x / z + cx, fy * y / z + cy)
+
+
+def lamp_evidence(hsv, box, min_px=4, min_frac=0.004):
+    """框内「灯条亮像素」数量与比例 —— 剔除被遮挡/背面不可见的板
+
+    只用亮度/饱和度的粗判据（不依赖检测器），本质是"这块板在图里看不看得见"。
+    """
+    x0, y0, x1, y1 = [int(round(v)) for v in box]
+    x0, y0 = max(x0, 0), max(y0, 0)
+    x1, y1 = min(x1, hsv.shape[1]), min(y1, hsv.shape[0])
+    if x1 - x0 < 3 or y1 - y0 < 3:
+        return False, 0.0
+    roi = hsv[y0:y1, x0:x1]
+    s, v = roi[:, :, 1], roi[:, :, 2]
+    cnt = int(((v > 110) & (s > 90)).sum())
+    frac = cnt / float(roi.shape[0] * roi.shape[1])
+    return (cnt >= min_px and frac >= min_frac), frac
 
 
 def main():
@@ -92,8 +121,7 @@ def main():
     ap.add_argument("--out", default=os.path.expanduser("~/yolo_dataset"))
     ap.add_argument("--min-dist", type=float, default=1.5, help="忽略过近的己方装甲板")
     ap.add_argument("--max-dist", type=float, default=30.0)
-    ap.add_argument("--plate-w", type=float, default=0.15, help="装甲板宽 (m)，来自仿真 marker")
-    ap.add_argument("--plate-h", type=float, default=0.125, help="装甲板高 (m)")
+    ap.add_argument("--val-scenes", nargs="+", default=["E"], help="留作验证的场景（跨场景验证）")
     ap.add_argument("--debug", type=int, default=6, help="每个场景存几张标注可视化")
     args = ap.parse_args()
 
@@ -102,8 +130,10 @@ def main():
     dbg_dir = os.path.join(args.out, "debug")
     for d in (img_dir, lbl_dir, dbg_dir):
         os.makedirs(d, exist_ok=True)
+    for f in glob.glob(os.path.join(args.out, "*.cache")):
+        os.remove(f)
 
-    stats = {}
+    stats, scene_files = {}, {}
     for scene in args.scenes:
         bag = os.path.join(args.bags_dir, f"scene{scene}")
         if not os.path.isfile(os.path.join(bag, "metadata.yaml")):
@@ -115,6 +145,7 @@ def main():
         idx = 0
         saved = 0
         dbg_saved = 0
+        names = []
         while reader.has_next():
             topic, raw, _ = reader.read_next()
             if topic == "/tf":
@@ -141,26 +172,23 @@ def main():
                 continue
             R_cam = T_map_cam[:3, :3]
             t_cam = T_map_cam[:3, 3]
+            hsv = None
             boxes = []
             for (parent, child), tr in tf_latest.items():
                 if parent != "map" or not child.startswith("armor_"):
                     continue
-                R_a = quat_to_R(tr.rotation)
-                t_a = np.array([tr.translation.x, tr.translation.y, tr.translation.z])
-                # 过滤己方/过近的装甲板
-                dist = np.linalg.norm(t_a - t_cam)
+                R_m = quat_to_R(tr.rotation)
+                t_m = np.array([tr.translation.x, tr.translation.y, tr.translation.z])
+                dist = np.linalg.norm(t_m - t_cam)
                 if dist < args.min_dist or dist > args.max_dist:
                     continue
-                normal = R_a @ np.array([1.0, 0.0, 0.0])   # 装甲板法线（marker x 轴）
-                if np.dot(normal, t_cam - t_a) <= 0:        # 背面不可见
-                    continue
-                hw, hh = args.plate_w / 2, args.plate_h / 2
+                # marker → 真实板面（与 S2 真值定义一致）
+                Rp, tp = plate_pose_from_marker(R_m, t_m)
                 pts = []
                 ok = True
-                for sy, sz in [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]:
-                    p_map = t_a + R_a @ np.array([0.0, sy, sz])
-                    p_cam = R_cam.T @ (p_map - t_cam)
-                    uv = project(K, p_cam)
+                for op in OBJ_PTS:
+                    p_cam = R_cam.T @ (tp + Rp @ op - t_cam)
+                    uv = project_pt(K, p_cam)
                     if uv is None:
                         ok = False
                         break
@@ -174,6 +202,11 @@ def main():
                     continue
                 if x0 < 0 or y0 < 0 or x1 > w or y1 > h:
                     continue
+                if hsv is None:
+                    hsv = cv2.cvtColor(buf[: h * w * 3].reshape(h, w, 3), cv2.COLOR_RGB2HSV)
+                visible, _frac = lamp_evidence(hsv, (x0, y0, x1, y1))
+                if not visible:
+                    continue
                 cx, cy = (x0 + x1) / 2 / w, (y0 + y1) / 2 / h
                 bw, bh = (x1 - x0) / w, (y1 - y0) / h
                 boxes.append((cx, cy, bw, bh, pts.astype(np.int32)))
@@ -186,31 +219,45 @@ def main():
             with open(os.path.join(lbl_dir, name + ".txt"), "w") as f:
                 for (cx, cy, bw, bh, _) in boxes:
                     f.write(f"0 {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}\n")
+            names.append(name)
             saved += 1
             if dbg_saved < args.debug:
                 d = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 for (cx, cy, bw, bh, pts) in boxes:
-                    cv2.polylines(d, [pts], True, (0, 255, 0), 3)
+                    cv2.polylines(d, [pts], True, (0, 255, 0), 2)
                 cv2.putText(d, f"{name} boxes={len(boxes)}", (12, 34),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 255), 2)
                 cv2.imwrite(os.path.join(dbg_dir, name + ".jpg"), cv2.resize(d, (960, 720)))
                 dbg_saved += 1
         stats[scene] = saved
+        scene_files[scene] = names
         print(f"scene{scene}: 保存 {saved} 张带标注图片", flush=True)
 
+    # 数据划分：按场景留出（跨场景验证，比随机抽帧更能反映泛化）
+    val_scenes = [s for s in args.scenes if s in args.val_scenes]
+    train_names, val_names = [], []
+    for scene, names in scene_files.items():
+        (val_names if scene in val_scenes else train_names).extend(names)
+    for tag, names in (("train", train_names), ("val", val_names)):
+        with open(os.path.join(args.out, f"{tag}.txt"), "w", encoding="utf-8") as f:
+            for n in names:
+                f.write(os.path.join(os.path.abspath(img_dir), n + ".jpg") + "\n")
     with open(os.path.join(args.out, "dataset.yaml"), "w", encoding="utf-8") as f:
         yaml.safe_dump({
             "path": os.path.abspath(args.out),
-            "train": "images",
-            "val": "images",
+            "train": "train.txt",
+            "val": "val.txt",
             "names": {0: "armor"},
             "nc": 1,
         }, f, allow_unicode=True)
     with open(os.path.join(args.out, "stats.json"), "w", encoding="utf-8") as f:
         json.dump({"per_scene": stats, "total": sum(stats.values()),
-                   "plate_size": [args.plate_w, args.plate_h], "step": args.step}, f,
-                  ensure_ascii=False, indent=2)
-    print("\n总计:", sum(stats.values()), "张；输出:", args.out)
+                   "train": len(train_names), "val": len(val_names),
+                   "val_scenes": val_scenes, "step": args.step,
+                   "label_source": "tf armor marker -> plate_pose_from_marker (x-y plate plane)"},
+                  f, ensure_ascii=False, indent=2)
+    print("\n总计:", sum(stats.values()), "张；train:", len(train_names),
+          "val:", len(val_names), "；输出:", args.out)
 
 
 if __name__ == "__main__":

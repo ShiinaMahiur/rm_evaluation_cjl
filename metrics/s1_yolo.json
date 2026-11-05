@@ -1,18 +1,68 @@
 {
   "detector": "yolo_v8n_autolabel",
-  "weights": "/home/chen/yolo_runs/s1_armor/weights/best.pt",
+  "weights": "/home/chen/yolo_runs/s1_armor_v2/weights/best.pt",
   "imgsz": 640,
   "conf": 0.25,
-  "val_images": 373,
-  "map50": 0.974,
-  "map50_95": 0.8896,
-  "precision": 0.9383,
-  "recall": 0.8994,
+  "val_images": 387,
+  "val_scenes": [
+    "E"
+  ],
+  "map50": 0.8447,
+  "map50_95": 0.7776,
+  "precision": 0.9715,
+  "recall": 0.7733,
   "detection_rate": 1.0,
-  "latency_ms_gpu_mean": 7.6,
-  "latency_ms_gpu_p95": 8.141,
-  "latency_ms_cpu_mean": 21.716,
-  "latency_ms_cpu_p95": 21.98,
+  "latency_ms_gpu_mean": 6.901,
+  "latency_ms_gpu_p95": 6.912,
+  "latency_ms_cpu_mean": 22.194,
+  "latency_ms_cpu_p95": 40.237,
   "cpu_samples": 100,
-  "note": "detection_rate = 至少检出 1 个目标的图片占比（conf>=0.25）；训练数据为仿真真值自动标注"
+  "per_scene": {
+    "A": {
+      "images": 386,
+      "instances": 2316,
+      "pred_boxes": 2316,
+      "det_images": 386,
+      "det_rate": 1.0,
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "B": {
+      "images": 371,
+      "instances": 1890,
+      "pred_boxes": 1899,
+      "det_images": 371,
+      "det_rate": 1.0,
+      "recall": 0.9995,
+      "precision": 0.9947
+    },
+    "C": {
+      "images": 368,
+      "instances": 2121,
+      "pred_boxes": 2361,
+      "det_images": 368,
+      "det_rate": 1.0,
+      "recall": 0.8868,
+      "precision": 0.7967
+    },
+    "D": {
+      "images": 339,
+      "instances": 1994,
+      "pred_boxes": 2005,
+      "det_images": 339,
+      "det_rate": 1.0,
+      "recall": 0.992,
+      "precision": 0.9865
+    },
+    "E": {
+      "images": 387,
+      "instances": 2082,
+      "pred_boxes": 2103,
+      "det_images": 387,
+      "det_rate": 1.0,
+      "recall": 0.8108,
+      "precision": 0.8027
+    }
+  },
+  "note": "labels 由仿真真值自动生成（plate_pose_from_marker，2026-11-05 修正了旧版错误的板面平面）；验证集为跨场景 E（训练只用 A/B/C/D）；detection_rate = 至少检出 1 个目标的图片占比（conf>=0.25）"
 }
