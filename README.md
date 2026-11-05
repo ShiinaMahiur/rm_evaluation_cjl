@@ -89,6 +89,7 @@ ros2 launch rm_vision_probe vision.launch.py
 | `scripts/bag_extract.py` | 压缩 bag 抽帧成 JPG（`SequentialCompressionReader`） | 验证数据 |
 | `scripts/gimbal_diag.py` | 云台指令通路诊断（发绝对角度 ↔ 读 `/gimbal_pose`） | 排障 |
 | **`scripts/review_bags.py`** | **S0 数据集自查**：A~E 抽帧拼图 + 场景特征量化（速度/自转/遮挡/视线夹角）并与考核定义对拍 | 数据集验收 |
+| **`scripts/scene_driver.py`** | **闭环场景驱动**：读 `/tf` 实时测距测速 + xdotool 按键反馈，替代「按固定时长盲按」（需 X11 后端） | 数据集采集（A/B/C） |
 
 ```bash
 # S0 验收演示：一键回放 + 云台跟随
@@ -146,6 +147,10 @@ python3 ~/bag_extract.py $BAGS/sceneA --every 120   # 每 120 帧存 1 张
 | E 斜视 | 夹角 > 60° | 视线夹角中位 **59.0°**（最大可到 88°） | ⚠️ 临界 |
 
 > 说明：这些 bag 是 11-03 手工操作录的（`record_bags.sh` 是之后才写的自动化版），所以和考核定义有偏差。
+>
+> **重录状态（2026-11-05）**：录制脚本已闭环化并修掉三个真 bug（launcher 忽略 `DAEDALUS_BACKEND`、
+> X11 键盘自动重复、目标选成静止队友），但**还差云台瞄准闭环**——移动后 ROS 模式下云台不会自动对准目标，
+> 新录的 A/B 里目标出画，所以先回滚到原始 bag。重录计划见 WORKLOG 2026-11-05（补2）。
 > A 的 3/6/10 m、B 的 2 m/s 平移需要**重录**才能支撑对应指标；当前 S2/S3 的数字要按实际数据标注距离与速度。
 
 

@@ -39,6 +39,7 @@ LAUNCHER="${LAUNCHER:-$HOME/run_daedalus.sh}"
 CFG="$REPO/config.toml"
 SIMLOG="$HOME/daedalus_bags.log"
 TOPLIST=(/image_raw /camera_info /tf /gimbal_pose /odom_pose /muzzle_pose /camera_pose)
+DRIVER="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scene_driver.py"
 
 C_G=$'\033[0;32m'; C_Y=$'\033[1;33m'; C_R=$'\033[0;31m'; C_B=$'\033[0;36m'; C_N=$'\033[0m'
 say() { echo; echo "${C_B}==>${C_N} $*"; }
@@ -101,6 +102,7 @@ PYCFG
 
 # ------------------------------- 3. 起仿真器 ---------------------------------
 KEEP_SIM="${KEEP_SIM:-0}"
+RESTART_PER_SCENE="${RESTART_PER_SCENE:-1}"   # 每个场景前重启仿真器（清空上一场把车开到边界的副作用）
 if [ "$KEEP_SIM" = "1" ] && pgrep -x daedalus >/dev/null; then
   say "3/6 沿用已在运行的仿真器（KEEP_SIM=1，不重启、不杀它）"
   if [ -z "${SIM_PID:-}" ]; then
@@ -118,18 +120,50 @@ else
   SIM_PID=$!
   cleanup_sim() { kill -TERM -"$SIM_PID" 2>/dev/null || kill -TERM "$SIM_PID" 2>/dev/null || true
                   sleep 1; pkill -x daedalus 2>/dev/null || true; }
-  trap cleanup_sim EXIT
+  trap "cleanup_sim; restore_xrepeat" EXIT
 fi
 
-say "等待 /image_raw 出数据（最多 60 秒）"
-W=0
-for i in $(seq 1 60); do
-  W="$(timeout 3 ros2 topic echo /image_raw --once --field width 2>/dev/null | grep -oE '[0-9]+' | head -1)"
-  [ "${W:-}" = "1440" ] && break
-  sleep 1
-done
-[ "${W:-}" = "1440" ] || { warn "没等到 /image_raw（width=${W:-空}），日志 $SIMLOG 前 30 行："; head -30 "$SIMLOG" | sed 's/^/    /'; die "仿真器没起来"; }
-ok "/image_raw 宽度 = 1440"
+wait_image() {
+  local W=0
+  say "等待 /image_raw 出数据（最多 60 秒）"
+  for i in $(seq 1 60); do
+    W="$(timeout 3 ros2 topic echo /image_raw --once --field width 2>/dev/null | grep -oE '[0-9]+' | head -1)"
+    [ "${W:-}" = "1440" ] && break
+    sleep 1
+  done
+  [ "${W:-}" = "1440" ] || { warn "没等到 /image_raw（width=${W:-空}），日志 $SIMLOG 前 30 行："; head -30 "$SIMLOG" | sed 's/^/    /'; die "仿真器没起来"; }
+  ok "/image_raw 宽度 = 1440"
+}
+
+find_and_focus_window() {
+  local WID="" DAE_PID xtry=0
+  for i in $(seq 1 20); do
+    DAE_PID="$(pgrep -x daedalus 2>/dev/null | head -1)"
+    xtry=$i
+    [ -n "$DAE_PID" ] && WID="$(xdotool search --pid "$DAE_PID" 2>/dev/null | head -1)"
+    [ -z "${WID:-}" ] && WID="$(xdotool search --onlyvisible --name "daedalus" 2>/dev/null | head -1)"
+    [ -z "${WID:-}" ] && WID="$(xdotool search --onlyvisible --class "daedalus" 2>/dev/null | head -1)"
+    [ -n "${WID:-}" ] && break
+    sleep 1
+  done
+  if [ -n "${WID:-}" ]; then
+    xdotool windowactivate --sync "$WID" 2>/dev/null || true
+    xdotool windowfocus --sync "$WID" 2>/dev/null || true
+    ok "窗口 ID=$WID（尝试 $xtry 次）"
+  else
+    warn "没找到 daedalus 窗口，按键注入可能无效（场景会变成静止）"
+  fi
+}
+
+start_sim_fresh() {
+  say "重启仿真器（每场景前清场，避免机器人被上一场开到边界）"
+  pkill -x daedalus 2>/dev/null; sleep 1
+  rm -f "$SIMLOG"
+  DAEDALUS_BACKEND=x11 setsid "$LAUNCHER" >"$SIMLOG" 2>&1 </dev/null &
+  SIM_PID=$!
+  wait_image
+  find_and_focus_window
+}
 
 say "量一下实际帧率（仅供参考，不再限帧）"
 HZ="$(timeout 8 ros2 topic hz /image_raw 2>/dev/null | grep -oE 'average rate: [0-9.]+' | tail -1 | grep -oE '[0-9.]+')"
@@ -138,51 +172,61 @@ HZ="$(timeout 8 ros2 topic hz /image_raw 2>/dev/null | grep -oE 'average rate: [
 # ------------------------------- 4. 窗口焦点 ---------------------------------
 say "4/6 找到仿真窗口并聚焦（xdotool 发按键的前提）"
 [ -z "${DISPLAY:-}" ] && warn "DISPLAY 为空，xdotool 发不了键（请在桌面终端里跑）"
-WID=""
-DAE_PID=""
-xtry=0
-for i in $(seq 1 20); do
-  DAE_PID="$(pgrep -f 'target/release/daedalus' 2>/dev/null | head -1)"
-  # 三种找法，优先级：按进程 → 按标题 → 按窗口类
-  xtry=$i
-  [ -n "$DAE_PID" ] && WID="$(xdotool search --pid "$DAE_PID" 2>/dev/null | head -1)"
-  [ -z "${WID:-}" ] && WID="$(xdotool search --onlyvisible --name "daedalus" 2>/dev/null | head -1)"
-  [ -z "${WID:-}" ] && WID="$(xdotool search --onlyvisible --class "daedalus" 2>/dev/null | head -1)"
-  [ -n "${WID:-}" ] && break
-  sleep 1
-done
-if [ -n "${WID:-}" ]; then
-  xdotool windowactivate --sync "$WID" 2>/dev/null || true
-  xdotool windowfocus --sync "$WID" 2>/dev/null || true
-  ok "窗口 ID=$WID（尝试 $xtry 次）"
-else
-  warn "没找到 daedalus 窗口，按键注入可能无效（场景会变成静止）"
-fi
+find_and_focus_window
 
 # ------------------------------- 场景动作 -----------------------------------
+# ⚠️ 关闭 X11 键盘自动重复：xdotool keydown 按住时，auto-repeat 会周期性发
+#    KeyRelease，导致仿真器以为键被松开 —— 实测场景只动 0.5 s 就停（旧 bag B 场景
+#    速度只有 0.01 m/s 就是这个原因）。录完在 cleanup 里恢复。
+XRESTORE=0
+if command -v xset >/dev/null; then
+  if xset q 2>/dev/null | grep -qi 'auto repeat:.*on'; then xset -r && XRESTORE=1 && ok "已关闭键盘自动重复（录完恢复）"; fi
+fi
+restore_xrepeat() { [ "${XRESTORE:-0}" = "1" ] && xset r on 2>/dev/null || true; }
+add_cleanup_restore() { :; }
 # 按键表（AGENTS.md）：假人移动 I J K L / 假人底盘旋转 U O / 假人云台 F V C B
 #                      切换假人 Tab / 己方移动 W A S D / 视角 F3
 # 注意：这些是“按实际画面调”的初始版本，录完必须抽查关键帧；见末尾提示。
 keydown() { xdotool keydown "$@" 2>/dev/null || true; }
 keyup()   { xdotool keyup   "$@" 2>/dev/null || true; }
 
-scenario_A() {   # 静止：什么都不按（默认假人对枪状态）
-  sleep "$DUR"
+# 闭环驱动（scene_driver.py）：读 /tf 实时测距离/速度，按键反馈
+# 旧版用固定时长按键，实测 B 场景速度只有 0.01 m/s、A 只有 1.5~2.4 m 一档。
+run_driver() { python3 "$DRIVER" "$@"; }
+
+scenario_A() {   # 静止：三档距离 3 / 6 / 10 m，每档静止 DUR/3 秒
+  local each=$((DUR / 3)); [ "$each" -lt 3 ] && each=3
+  ok "A：闭环开到 3/6/10 m，每档静止 ${each}s（需要窗口聚焦）"
+  # 仿真场地只有约 ±3.5 m，10 m 单向到不了；先录 3/6 m（6 m 靠「两头拉」实现）
+  run_driver --mode distance --targets 3 6 --dwell "$each" --tol 0.18 \
+    || warn "闭环驱动失败，退化为静止不动：$(sleep 1; echo ok)"
 }
-scenario_B() {   # 匀速平移：假人横移
-  keydown j; sleep "$DUR"; keyup j
+scenario_B() {   # 匀速平移：闭环控制目标速度 ~2 m/s（来回平移，保持不出画）
+  ok "B：闭环控制目标速度 2 m/s，持续 ${DUR}s"
+  run_driver --mode speed --target 2.0 --duration "$DUR" --span 2.5 \
+    || warn "闭环驱动失败；手动退化为按住 J：$(keydown j; sleep "$DUR"; keyup j; echo ok)"
 }
-scenario_C() {   # 自转 + 平移：底盘旋转 + 横移
-  keydown u; keydown j; sleep "$DUR"; keyup u; keyup j
+scenario_C() {   # 自转 + 平移：假人底盘自转（U 切换）+ 闭环 ~1.5 m/s 平移
+  ok "C：假人底盘自转 + 闭环平移 1.5 m/s"
+  xdotool key u 2>/dev/null || true
+  sleep 0.5
+  run_driver --mode speed --target 1.5 --duration "$DUR" --span 2.0 \
+    || warn "闭环驱动失败；退化为按住 u+j：$(keydown u; keydown j; sleep "$DUR"; keyup u; keyup j; echo ok)"
+  xdotool key u 2>/dev/null || true
 }
-scenario_D() {   # 丢失/重捕获：镜头转开 2s（目标出画）再转回等时长
-  # 云台固定转速，等时长回转能回到原朝向（本机实测可用）
-  keydown Right; sleep 0.8; keyup Right
-  sleep 2
-  keydown Left; sleep 0.8; keyup Left
-  sleep $((DUR - 3 > 0 ? DUR - 3 : 1))
+scenario_D() {   # 丢失/重捕获：镜头转开 ~0.5s（目标出画）再转回
+  # 考核要求遮挡 0.5 s；云台固定转速，按同长回转即可回到原朝向
+  local away=${D_OCCL:-0.25}
+  keydown Right; sleep "$away"; keyup Right
+  sleep 0.3                       # 目标在画外停留 ~0.5 s
+  keydown Left; sleep "$away"; keyup Left
+  sleep $((DUR - 1 > 0 ? DUR - 1 : 1))
 }
-scenario_E() {   # 大角度斜视：假人底盘原地自转（U 开关），装甲板法线角度持续变化
+scenario_E() {   # 大角度斜视：先横移拉开视角，再让假人底盘自转（U）
+  # 先侧移 ~2 m 增加相机→目标的视线与板法线夹角
+  ok "E：侧移约 2 m → 假人自转 ${DUR}s"
+  local side=${E_SIDE:-2.0}
+  keydown a; sleep "$side"; keyup a
   xdotool key u 2>/dev/null || true
   sleep "$DUR"
   xdotool key u 2>/dev/null || true
@@ -191,6 +235,9 @@ scenario_E() {   # 大角度斜视：假人底盘原地自转（U 开关），�
 run_scene() {
   local name="$1" desc="$2" fn="$3"
   local out="$BAGS_ROOT/scene$name"
+  if [ "${RESTART_PER_SCENE:-1}" = "1" ] && [ "${KEEP_SIM:-0}" != "1" ]; then
+    start_sim_fresh
+  fi
   if [ -d "$out" ]; then
     mv "$out" "$out.old.$(date +%s)"
     warn "旧的 scene$name 已改名保留"
@@ -230,6 +277,7 @@ for s in $SCENES; do
 done
 
 # ------------------------------- 6. 汇总 ------------------------------------
+restore_xrepeat
 say "6/6 汇总"
 echo "    bag 目录：$BAGS_ROOT"
 df -h "$BAGS_ROOT" | sed 's/^/    /'
