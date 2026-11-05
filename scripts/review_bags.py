@@ -192,7 +192,8 @@ def review_scene(bag_dir, scene, sample_hz, out_dir, sheet_n=8):
 
     tf, K = {}, None
     idx = 0
-    frames = []           # [(t, {armor: st}, set(visible_ids))]
+    frames = []           # [(t, {armor: st}, set(visible_ids), {armor: world})]
+    cam_track = []        # [(t, camera_pos)]
     sheet_frames = []     # [(t, bgr, [visible infos])]
     while reader.has_next():
         topic, raw, stamp = reader.read_next()
@@ -220,6 +221,17 @@ def review_scene(bag_dir, scene, sample_hz, out_dir, sheet_n=8):
         if K is None or T is None:
             continue
         infos = plate_infos(tf, T, K, w, h)
+        # 全部装甲板的世界位姿（不要求投影在画面内）——用于速度/自转统计
+        world = {}
+        for (p_, c_), tr_ in tf.items():
+            if p_ != "map" or not c_.startswith("armor_"):
+                continue
+            Rm_ = quat2R(tr_.rotation)
+            tm_ = np.array([tr_.translation.x, tr_.translation.y, tr_.translation.z])
+            if np.linalg.norm(tm_ - T[:3, 3]) < 1.0:
+                continue
+            Rp_, tp_ = plate_pose_from_marker(Rm_, tm_)
+            world[c_] = {"t": tp_, "R": Rp_}
         per, vis_ids = {}, set()
         if infos:
             hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
@@ -231,39 +243,55 @@ def review_scene(bag_dir, scene, sample_hz, out_dir, sheet_n=8):
         if need_sheet:
             bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
             sheet_frames.append((t, bgr, [per[k] for k in vis_ids]))
-        frames.append((t, per, vis_ids))
+        frames.append((t, per, vis_ids, world))
+        cam_track.append((t, T[:3, 3].copy()))
 
     t0 = frames[0][0] if frames else 0.0
-    all_ids = sorted({k for _, per, _ in frames for k in per})
+    all_ids = sorted({k for _, per, v, w_ in frames for k in (list(per) + list(w_))})
 
     # ---- 每块装甲板统计（运动用 /tf 直接算，不受可见性影响）----
     per_armor = {}
     for aid in all_ids:
-        timeline, states = [], []
-        for t, per, vis_ids in frames:
+        timeline, states, wstates = [], [], []
+        for t, per, vis_ids, world in frames:
             timeline.append((t, aid in vis_ids))
             if aid in per:
                 states.append((t, per[aid]))
+            if aid in world:
+                wstates.append((t, world[aid]))
         speeds, yaws = [], []
-        for (ta, a), (tb, b) in zip(states, states[1:]):
+        for (ta, a), (tb, b) in zip(wstates, wstates[1:]):
             dt = tb - ta
             if 0.02 <= dt <= 0.6:
                 speeds.append(float(np.linalg.norm(b["t"] - a["t"]) / dt))
                 yaws.append(rot_angle(b["R"], a["R"]) / dt)
-        dists = [s["dist"] for _, s in states]
+        # 距离用 world + 当帧相机位置逐帧算（相机在动，不能用后一帧的位置）
+        dists = []
+        cam_by_t = {t: c for (t, c) in cam_track}
+        for tt, s in wstates:
+            c = cam_by_t.get(tt)
+            if c is not None:
+                dists.append(float(np.linalg.norm(s["t"] - c)))
         angs = [s["angle"] for _, s in states]
         areas = [s["area"] for _, s in states]
+        path = float(sum(float(np.linalg.norm(b["t"] - a["t"]))
+                         for (_, a), (_, b) in zip(states, states[1:])))
         per_armor[aid] = {
             "distance_m": stat(dists), "speed_mps": stat(speeds),
             "yaw_rate_dps": stat(yaws), "view_angle_deg": stat(angs),
-            "area_px": stat(areas),
+            "area_px": stat(areas), "world_path_m": round(path, 3),
             "visible_ratio": round(sum(1 for _, v in timeline if v) / max(len(timeline), 1), 4),
             "occlusion_events": occlusion_events(timeline, t0),
         }
 
-    def pick(rule, min_vis=0.15):
+    # 「假人」= 世界系里真的移动过的装甲板（A 的推远、B 的平移、C/E 的自转都会体现在这）
+    moving_ids = [aid for aid, st in per_armor.items() if st.get("world_path_m", 0) > 0.2]
+
+    def pick(rule, min_vis=0.15, pool=None):
         best, best_val = None, -1e9
         for aid, st in per_armor.items():
+            if pool and aid not in pool:
+                continue
             if st["visible_ratio"] < min_vis:
                 continue
             v = rule(st)
@@ -271,16 +299,17 @@ def review_scene(bag_dir, scene, sample_hz, out_dir, sheet_n=8):
                 best, best_val = aid, v
         return best
 
+    pool = set(moving_ids) or None
     if scene == "A":
-        tgt = pick(lambda st: st["area_px"]["median"] if st["area_px"] else -1)
+        tgt = pick(lambda st: st["area_px"]["median"] if st["area_px"] else -1, pool=pool)
     elif scene == "B":
-        tgt = pick(lambda st: st["speed_mps"]["median"] if st["speed_mps"] else -1)
+        tgt = pick(lambda st: st["speed_mps"]["median"] if st["speed_mps"] else -1, pool=pool)
     elif scene == "C":
-        tgt = pick(lambda st: st["yaw_rate_dps"]["median"] if st["yaw_rate_dps"] else -1)
+        tgt = pick(lambda st: st["yaw_rate_dps"]["median"] if st["yaw_rate_dps"] else -1, pool=pool)
     elif scene == "D":
         tgt = pick(lambda st: max([e["dur_s"] for e in st["occlusion_events"]], default=0))
     else:
-        tgt = pick(lambda st: st["view_angle_deg"]["median"] if st["view_angle_deg"] else -1)
+        tgt = pick(lambda st: st["view_angle_deg"]["median"] if st["view_angle_deg"] else -1, pool=pool)
     if tgt is None:
         tgt = max(all_ids, key=lambda a: per_armor[a]["visible_ratio"]) if all_ids else None
     target = per_armor.get(tgt, {})
@@ -295,13 +324,34 @@ def review_scene(bag_dir, scene, sample_hz, out_dir, sheet_n=8):
     max_yaw = g(lambda st: st["yaw_rate_dps"]["median"] if st["yaw_rate_dps"] else None)
     max_occl = g(lambda st: max([e["dur_s"] for e in st["occlusion_events"]], default=None))
     max_angle = g(lambda st: st["view_angle_deg"]["median"] if st["view_angle_deg"] else None)
+    if pool:
+        dists_all = [per_armor[a]["distance_m"]["median"] for a in pool
+                     if per_armor[a]["distance_m"]]
+        # 也统计移动车在所有帧里的距离极值（用于 A 的 3/6 m 覆盖判定）
+        dist_all_frames = [per_armor[a]["distance_m"]["min"] for a in pool if per_armor[a]["distance_m"]] + \
+                          [per_armor[a]["distance_m"]["max"] for a in pool if per_armor[a]["distance_m"]]
+        if dist_all_frames:
+            dist_lo, dist_hi = min(dist_all_frames), max(dist_all_frames)
     dists_all = [st["distance_m"]["median"] for st in per_armor.values() if st["distance_m"]]
     dist_lo, dist_hi = (min(dists_all), max(dists_all)) if dists_all else (0, 0)
 
     if scene == "A":
-        ok = max_speed < 0.3
-        verdict = "符合（静止）" if ok else f"可疑（有运动 {max_speed:.2f} m/s）"
-        detail = f"画面内装甲板距离 {dist_lo:.1f}~{dist_hi:.1f} m（考核要求 3/6/10 m 三档）"
+        all_d = []
+        cam_by_t = {t: c for (t, c) in cam_track}
+        for t, _, _, world in frames:
+            c = cam_by_t.get(t)
+            if c is None:
+                continue
+            for aid in world:
+                if aid in per_armor:
+                    all_d.append(float(np.linalg.norm(world[aid]["t"] - c)))
+        def covered(x, tol=0.5):
+            return any(abs(d - x) <= tol for d in all_d)
+        ok = (max_speed < 0.3) and covered(3.0) and covered(6.0)
+        verdict = ("符合（静止；覆盖 3/6 m）" if ok
+                   else f"可疑（静止={max_speed < 0.3}, 3m覆盖={covered(3.0)}, 6m覆盖={covered(6.0)}）")
+        detail = (f"画面内目标距离覆盖 {min(all_d):.1f}~{max(all_d):.1f} m；"
+                  f"3 m±0.5 有={covered(3.0)}，6 m±0.5 有={covered(6.0)}（10 m 受仿真场地限制）")
     elif scene == "B":
         ok = 1.0 <= max_speed <= 3.5
         verdict = (f"符合（平移 {max_speed:.2f} m/s）" if ok

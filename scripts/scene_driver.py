@@ -36,9 +36,17 @@ import time
 
 import numpy as np
 import rclpy
+from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from tf2_msgs.msg import TFMessage
+
+try:
+    from rm_interfaces.msg import GimbalCmd
+    HAVE_GIMBAL_MSG = True
+except Exception:                     # 没装 rm_interfaces 时退化为「只测不瞄」
+    GimbalCmd = None
+    HAVE_GIMBAL_MSG = False
 
 SELF_KEYS = {"w": "w", "a": "a", "s": "s", "d": "d"}
 REMOTE_KEYS = {"i": "i", "j": "j", "k": "k", "l": "l"}
@@ -55,6 +63,14 @@ def quat2R(q):
     ])
 
 
+def quat2pitchyaw(q):
+    n = math.sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w) or 1.0
+    x, y, z, w = q.x / n, q.y / n, q.z / n, q.w / n
+    yaw = math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+    sinp = max(-1.0, min(1.0, 2 * (w * y - z * x)))
+    return math.asin(sinp), yaw
+
+
 class SceneDriver(Node):
     def __init__(self):
         super().__init__("scene_driver")
@@ -62,6 +78,12 @@ class SceneDriver(Node):
         self.create_subscription(TFMessage, "/tf", self._on_tf, qos_profile_sensor_data)
         self.pressed = set()
         self.dummy_ids = None
+        self.gimbal_pose = None
+        self.pub_cmd = self.create_publisher(GimbalCmd, "/rm_gimbal/cmd", 10) if HAVE_GIMBAL_MSG else None
+        self.create_subscription(PoseStamped, "/gimbal_pose", self._on_gimbal_pose, 10)
+
+    def _on_gimbal_pose(self, msg):
+        self.gimbal_pose = msg.pose
 
     def _on_tf(self, msg):
         self.tf = {(t.header.frame_id, t.child_frame_id): t.transform for t in msg.transforms}
@@ -146,6 +168,92 @@ class SceneDriver(Node):
             return None
         return float(np.linalg.norm(c - cam))
 
+    # ---------- 云台瞄准（用 /tf 算目标在相机系的角度，闭环发 /rm_gimbal/cmd）----------
+    def _cam_vec(self):
+        """目标在相机系的位置向量（相机系 x右 y下 z前）"""
+        cam = self.camera_pos()
+        tgt, _ = self.target_center()
+        if cam is None or tgt is None:
+            return None
+        T = np.eye(4)
+        for k in CHAIN:
+            tr = self.tf.get(k)
+            if tr is None:
+                return None
+            M = np.eye(4)
+            M[:3, :3] = quat2R(tr.rotation)
+            M[:3, 3] = [tr.translation.x, tr.translation.y, tr.translation.z]
+            T = T @ M
+        return T[:3, :3].T @ (tgt - T[:3, 3]), tgt, cam
+
+    def _desired_aim_deg(self):
+        """由世界几何直接算「相机应该指向」的绝对 yaw / 仰角（不依赖当前朝向）"""
+        cam = self.camera_pos()
+        tgt, _ = self.target_center()
+        if cam is None or tgt is None:
+            return None
+        d = tgt - cam
+        horiz = math.hypot(d[0], d[1])
+        yaw = math.degrees(math.atan2(d[1], d[0]))
+        elev = math.degrees(math.atan2(d[2], max(horiz, 1e-6)))
+        return yaw, elev, float(np.linalg.norm(d))
+
+    def aim_until(self, tol=2.0, timeout=6.0, gain=0.8):
+        """闭环把云台指向目标：先用世界几何给绝对初值，再用相机系误差修正
+
+        不依赖"目标在画面里"——目标在身后也能转过去（之前的版本遇到身后就返回失败）。
+        """
+        if self.pub_cmd is None:
+            return False
+        aim = self._desired_aim_deg()
+        if aim is None:
+            return False
+        yaw_cmd, elev, dist = aim
+        pitch_cmd = 90.0 + elev          # solver 约定：90 = 水平
+        sign_yaw, sign_pitch = 1.0, 1.0
+        t0 = time.time()
+        prev = None
+        flipped = False
+        while time.time() - t0 < timeout:
+            cmd = GimbalCmd()
+            cmd.header.stamp = self.get_clock().now().to_msg()
+            cmd.yaw, cmd.pitch, cmd.distance = float(yaw_cmd), float(pitch_cmd), float(dist)
+            cmd.fire_advice = False
+            self.pub_cmd.publish(cmd)
+            self.spin_for(0.15)
+            got = self._cam_vec()
+            if got is None:
+                continue
+            v, tgt, cam = got
+            if v[2] <= 0.1:                      # 目标还在身后：先大角度转
+                if not flipped:
+                    yaw_cmd += 180.0
+                    flipped = True
+                    continue
+                yaw_cmd += 20.0
+                continue
+            yaw_err = math.degrees(math.atan2(v[0], v[2]))
+            pitch_err = math.degrees(math.atan2(v[1], v[2]))
+            if abs(yaw_err) <= tol and abs(pitch_err) <= tol:
+                print(f"[瞄] 已居中（yaw {yaw_err:+.1f}° pitch {pitch_err:+.1f}°，距离 {dist:.2f} m）", flush=True)
+                return True
+            if prev is not None:
+                if abs(yaw_err) > abs(prev[0]) + 0.8:
+                    sign_yaw = -sign_yaw
+                if abs(pitch_err) > abs(prev[1]) + 0.8:
+                    sign_pitch = -sign_pitch
+            prev = (yaw_err, pitch_err)
+            yaw_cmd += sign_yaw * gain * yaw_err
+            pitch_cmd += sign_pitch * gain * pitch_err
+        got = self._cam_vec()
+        if got is not None and got[0][2] > 0.1:
+            v = got[0]
+            print(f"[瞄] 超时（yaw {math.degrees(math.atan2(v[0], v[2])):+.1f}° "
+                  f"pitch {math.degrees(math.atan2(v[1], v[2])):+.1f}°）", flush=True)
+        else:
+            print("[瞄] 超时（目标仍在身后）", flush=True)
+        return False
+
     # ---------- 按键 ----------
     def key_down(self, k):
         if k not in self.pressed:
@@ -213,7 +321,7 @@ def main():
     ap.add_argument("--tol", type=float, default=0.18, help="距离容差 (m)")
     ap.add_argument("--speed", type=float, default=2.0, help="B 场景目标速度 (m/s)")
     ap.add_argument("--duration", type=float, default=20.0, help="speed 模式持续秒数")
-    ap.add_argument("--span", type=float, default=1.6, help="speed 模式来回半行程 (m)")
+    ap.add_argument("--span", type=float, default=1.2, help="speed 模式来回半行程 (m)")
     ap.add_argument("--phase-timeout", type=float, default=15.0, help="distance 模式每档最长秒数")
     ap.add_argument("--rate", type=float, default=20.0, help="控制频率 Hz")
     args = ap.parse_args()
@@ -235,6 +343,7 @@ def main():
     period = 1.0 / max(args.rate, 1.0)
     try:
         node.dummy_ids = node.identify_target()
+        node.aim_until(tol=3.0, timeout=4.0)
         if args.mode == "calibrate":
             node.calibrate("speed")
         elif args.mode == "speed":
@@ -261,6 +370,7 @@ def main():
             t_end = time.time() + args.duration
             node.key_down(key)
             last_print = 0
+            last_aim = time.time()
             while time.time() < t_end:
                 rclpy.spin_once(node, timeout_sec=period)
                 c, _ = node.target_center()
@@ -304,6 +414,8 @@ def main():
                     node.key_down(key)
                 elif v > args.speed + 0.35:
                     node.key_up(key)
+                # 注意：这里不能调阻塞式 aim_until —— 会冻结按键状态、速度掉到 0。
+                # 目标在 ±span 内来回，靠初始瞄准即可保持在视野内。
                 if now - last_print > 2.0:
                     print(f"[B] t={args.duration - (t_end - now):4.1f}s 速度≈{v:.2f} m/s "
                           f"距离≈{np.linalg.norm(c - node.camera_pos()):.2f} m", flush=True)
@@ -389,6 +501,7 @@ def main():
                 if key is not None:
                     node.key_up(key)
                 node.spin_for(0.4)
+                node.aim_until(tol=2.0, timeout=5.0)
                 cam = node.camera_pos(); c, _ = node.target_center()
                 d = float(np.linalg.norm(c - cam)) if cam is not None and c is not None else -1
                 print(f"[A] 到达 {d:.2f} m（目标 {target:.1f}±{args.tol}），静止保持 {args.dwell:.0f}s", flush=True)
