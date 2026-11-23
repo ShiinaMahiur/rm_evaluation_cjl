@@ -2,907 +2,419 @@
   "A": {
     "scene": "A",
     "desc": "静止目标（3/6/10 m）",
-    "duration_s": 22.5,
-    "images": 4680,
-    "fps": 208.0,
+    "duration_s": 29.36,
+    "images": 6519,
+    "fps": 222.1,
     "topics": {
-      "/camera_info": 4886,
-      "/camera_pose": 4815,
-      "/gimbal_pose": 4849,
-      "/tf": 4854,
-      "/image_raw": 4680,
-      "/muzzle_pose": 4892,
-      "/odom_pose": 4912
+      "/camera_info": 6882,
+      "/camera_pose": 6846,
+      "/gimbal_pose": 6855,
+      "/tf": 6900,
+      "/image_raw": 6519,
+      "/muzzle_pose": 6952,
+      "/odom_pose": 6950
     },
-    "verdict": "符合（静止；覆盖 3/6 m）",
-    "detail": "画面内目标距离覆盖 1.1~6.6 m；3 m±0.5 有=True，6 m±0.5 有=True（10 m 受仿真场地限制）",
+    "verdict": "符合（静止；覆盖 3 m）",
+    "detail": "画面内目标距离覆盖 1.1~2.6 m；覆盖档位=[3.0]；注：仿真场地单向约 4.7 m，6/10 m 需把假人推到墙后（画面被挡）→ 不可用",
     "target_armor": "armor_10",
     "target": {
       "distance_m": {
-        "mean": 2.907,
-        "median": 2.395,
-        "p95": 5.217,
-        "min": 1.136,
-        "max": 5.44
+        "mean": 1.27,
+        "median": 1.264,
+        "p95": 1.342,
+        "min": 1.15,
+        "max": 1.449
       },
       "speed_mps": {
-        "mean": 0.013,
+        "mean": 0.011,
         "median": 0.0,
         "p95": 0.0,
         "min": 0.0,
-        "max": 2.941
+        "max": 1.948
       },
       "yaw_rate_dps": {
-        "mean": 0.008,
+        "mean": 0.006,
         "median": 0.0,
         "p95": 0.0,
         "min": 0.0,
-        "max": 1.104
+        "max": 0.84
       },
       "view_angle_deg": {
-        "mean": 51.53,
-        "median": 52.864,
-        "p95": 55.005,
-        "min": 38.395,
-        "max": 55.012
+        "mean": 44.593,
+        "median": 44.797,
+        "p95": 44.797,
+        "min": 39.047,
+        "max": 49.982
       },
       "area_px": {
-        "mean": 8718.128,
-        "median": 4646.933,
-        "p95": 31988.92,
-        "min": 890.313,
-        "max": 43521.165
+        "mean": 28407.525,
+        "median": 27787.577,
+        "p95": 32339.523,
+        "min": 22011.726,
+        "max": 42524.283
       },
       "world_path_m": 0.0,
-      "visible_ratio": 0.1783,
+      "visible_ratio": 0.9112,
       "occlusion_events": [
         {
-          "start_s": 3.35,
-          "dur_s": 1.56
+          "start_s": 2.54,
+          "dur_s": 0.96
         }
       ]
     },
     "scene_metrics": {
       "max_speed_mps": 0.0,
       "cruise_speed_mps": 0.0,
-      "max_yaw_rate_dps": 0.68,
-      "max_occlusion_s": 3.91,
-      "max_view_angle_deg": 63.23,
+      "max_yaw_rate_dps": 0.48,
+      "max_occlusion_s": 4.02,
+      "max_view_angle_deg": 64.08,
       "distance_range_m": [
-        2.34,
-        3.52
+        1.26,
+        2.3
       ]
     },
     "per_armor": {
       "armor_10": {
         "distance_m": {
-          "mean": 2.907,
-          "median": 2.395,
-          "p95": 5.217,
-          "min": 1.136,
-          "max": 5.44
+          "mean": 1.27,
+          "median": 1.264,
+          "p95": 1.342,
+          "min": 1.15,
+          "max": 1.449
         },
         "speed_mps": {
-          "mean": 0.013,
+          "mean": 0.011,
           "median": 0.0,
           "p95": 0.0,
           "min": 0.0,
-          "max": 2.941
+          "max": 1.948
         },
         "yaw_rate_dps": {
-          "mean": 0.008,
+          "mean": 0.006,
           "median": 0.0,
           "p95": 0.0,
           "min": 0.0,
-          "max": 1.104
+          "max": 0.84
         },
         "view_angle_deg": {
-          "mean": 51.53,
-          "median": 52.864,
-          "p95": 55.005,
-          "min": 38.395,
-          "max": 55.012
+          "mean": 44.593,
+          "median": 44.797,
+          "p95": 44.797,
+          "min": 39.047,
+          "max": 49.982
         },
         "area_px": {
-          "mean": 8718.128,
-          "median": 4646.933,
-          "p95": 31988.92,
-          "min": 890.313,
-          "max": 43521.165
+          "mean": 28407.525,
+          "median": 27787.577,
+          "p95": 32339.523,
+          "min": 22011.726,
+          "max": 42524.283
         },
         "world_path_m": 0.0,
-        "visible_ratio": 0.1783,
+        "visible_ratio": 0.9112,
         "occlusion_events": [
           {
-            "start_s": 3.35,
-            "dur_s": 1.56
+            "start_s": 2.54,
+            "dur_s": 0.96
           }
         ]
       },
       "armor_11": {
         "distance_m": {
-          "mean": 3.174,
-          "median": 2.663,
-          "p95": 5.465,
-          "min": 1.403,
-          "max": 5.687
+          "mean": 1.561,
+          "median": 1.557,
+          "p95": 1.609,
+          "min": 1.419,
+          "max": 1.703
         },
         "speed_mps": {
-          "mean": 0.013,
+          "mean": 0.011,
           "median": 0.0,
           "p95": 0.0,
           "min": 0.0,
-          "max": 2.941
+          "max": 1.948
         },
         "yaw_rate_dps": {
           "mean": 0.004,
           "median": 0.0,
           "p95": 0.0,
           "min": 0.0,
-          "max": 0.998
+          "max": 0.721
         },
         "view_angle_deg": {
-          "mean": 50.686,
-          "median": 51.163,
-          "p95": 53.664,
-          "min": 47.923,
-          "max": 54.462
+          "mean": 50.685,
+          "median": 50.477,
+          "p95": 53.452,
+          "min": 50.428,
+          "max": 53.505
         },
         "area_px": {
-          "mean": 5887.497,
-          "median": 4196.436,
-          "p95": 21507.848,
-          "min": 861.034,
-          "max": 24342.849
+          "mean": 17946.787,
+          "median": 17786.357,
+          "p95": 17798.774,
+          "min": 15966.636,
+          "max": 23927.35
         },
         "world_path_m": 0.0,
-        "visible_ratio": 0.0043,
+        "visible_ratio": 0.0,
         "occlusion_events": []
       },
       "armor_12": {
         "distance_m": {
-          "mean": 3.206,
-          "median": 2.707,
-          "p95": 5.53,
-          "min": 1.398,
-          "max": 5.753
+          "mean": 1.545,
+          "median": 1.54,
+          "p95": 1.618,
+          "min": 1.414,
+          "max": 1.725
         },
         "speed_mps": {
-          "mean": 0.013,
+          "mean": 0.011,
           "median": 0.0,
           "p95": 0.0,
           "min": 0.0,
-          "max": 2.941
+          "max": 1.948
         },
         "yaw_rate_dps": {
-          "mean": 0.245,
-          "median": 0.223,
-          "p95": 0.333,
-          "min": 0.166,
-          "max": 1.167
+          "mean": 0.244,
+          "median": 0.228,
+          "p95": 0.323,
+          "min": 0.0,
+          "max": 1.093
         },
         "view_angle_deg": {
-          "mean": 47.386,
-          "median": 42.955,
-          "p95": 63.76,
-          "min": 39.821,
-          "max": 65.868
+          "mean": 60.029,
+          "median": 59.873,
+          "p95": 62.474,
+          "min": 55.501,
+          "max": 65.017
         },
         "area_px": {
-          "mean": 6258.903,
-          "median": 4028.049,
-          "p95": 17350.996,
-          "min": 947.757,
-          "max": 17454.712
+          "mean": 14294.7,
+          "median": 14073.367,
+          "p95": 17030.232,
+          "min": 12750.738,
+          "max": 17111.791
         },
         "world_path_m": 0.0,
-        "visible_ratio": 0.1,
+        "visible_ratio": 0.0691,
         "occlusion_events": [
           {
-            "start_s": 6.43,
-            "dur_s": 1.23
+            "start_s": 1.77,
+            "dur_s": 1.84
           }
         ]
       },
       "armor_13": {
         "distance_m": {
-          "mean": 2.867,
-          "median": 2.343,
-          "p95": 5.148,
-          "min": 1.125,
-          "max": 5.37
+          "mean": 1.274,
+          "median": 1.27,
+          "p95": 1.323,
+          "min": 1.14,
+          "max": 1.409
         },
         "speed_mps": {
-          "mean": 0.013,
+          "mean": 0.011,
           "median": 0.0,
           "p95": 0.0,
           "min": 0.0,
-          "max": 2.941
+          "max": 1.948
         },
         "yaw_rate_dps": {
-          "mean": 0.461,
-          "median": 0.43,
-          "p95": 0.583,
-          "min": 0.271,
-          "max": 1.844
+          "mean": 0.469,
+          "median": 0.441,
+          "p95": 0.62,
+          "min": 0.0,
+          "max": 2.113
         },
         "view_angle_deg": {
-          "mean": 44.234,
-          "median": 44.136,
-          "p95": 52.861,
-          "min": 41.188,
-          "max": 58.053
+          "mean": 57.777,
+          "median": 58.002,
+          "p95": 58.006,
+          "min": 51.537,
+          "max": 58.076
         },
         "area_px": {
-          "mean": 5101.354,
-          "median": 4299.558,
-          "p95": 21713.07,
-          "min": 1086.894,
-          "max": 28297.422
+          "mean": 22316.578,
+          "median": 22265.447,
+          "p95": 22266.992,
+          "min": 21791.787,
+          "max": 28718.167
         },
         "world_path_m": 0.0,
-        "visible_ratio": 0.0739,
+        "visible_ratio": 0.8059,
         "occlusion_events": [
           {
-            "start_s": 3.35,
-            "dur_s": 3.91
+            "start_s": 2.54,
+            "dur_s": 4.02
           }
         ]
       },
       "armor_14": {
         "distance_m": {
-          "mean": 3.642,
-          "median": 3.157,
-          "p95": 5.964,
-          "min": 1.815,
-          "max": 6.187
+          "mean": 1.967,
+          "median": 1.96,
+          "p95": 2.078,
+          "min": 1.841,
+          "max": 2.244
         },
         "speed_mps": {
-          "mean": 0.024,
+          "mean": 0.015,
           "median": 0.0,
-          "p95": 0.024,
+          "p95": 0.0,
           "min": 0.0,
-          "max": 1.818
+          "max": 2.623
         },
         "yaw_rate_dps": {
-          "mean": 0.373,
-          "median": 0.0,
-          "p95": 0.28,
+          "mean": 0.403,
+          "median": 0.09,
+          "p95": 0.211,
           "min": 0.0,
-          "max": 48.331
+          "max": 61.249
         },
         "view_angle_deg": {
-          "mean": 64.074,
-          "median": 63.232,
-          "p95": 66.964,
-          "min": 60.361,
-          "max": 67.54
+          "mean": 64.032,
+          "median": 64.075,
+          "p95": 66.808,
+          "min": 60.908,
+          "max": 67.34
         },
         "area_px": {
-          "mean": 3042.545,
-          "median": 2203.024,
-          "p95": 7516.632,
-          "min": 675.802,
-          "max": 8261.172
+          "mean": 6433.862,
+          "median": 6380.282,
+          "p95": 6838.266,
+          "min": 5294.567,
+          "max": 7868.571
         },
         "world_path_m": 0.0,
-        "visible_ratio": 0.0478,
-        "occlusion_events": [
-          {
-            "start_s": 2.78,
-            "dur_s": 1.04
-          },
-          {
-            "start_s": 4.52,
-            "dur_s": 0.71
-          },
-          {
-            "start_s": 5.43,
-            "dur_s": 2.98
-          }
-        ]
+        "visible_ratio": 0.0132,
+        "occlusion_events": []
       },
       "armor_15": {
         "distance_m": {
-          "mean": 3.997,
-          "median": 3.516,
-          "p95": 6.33,
-          "min": 2.164,
-          "max": 6.552
+          "mean": 2.311,
+          "median": 2.304,
+          "p95": 2.417,
+          "min": 2.19,
+          "max": 2.579
         },
         "speed_mps": {
-          "mean": 0.026,
+          "mean": 0.016,
           "median": 0.0,
-          "p95": 0.026,
+          "p95": 0.0,
           "min": 0.0,
-          "max": 1.818
+          "max": 3.029
         },
         "yaw_rate_dps": {
-          "mean": 0.373,
-          "median": 0.0,
-          "p95": 0.388,
+          "mean": 0.677,
+          "median": 0.359,
+          "p95": 0.798,
           "min": 0.0,
-          "max": 48.331
+          "max": 61.25
         },
         "view_angle_deg": {
-          "mean": 33.248,
-          "median": 31.746,
-          "p95": 39.89,
-          "min": 30.229,
-          "max": 40.519
+          "mean": 37.476,
+          "median": 37.408,
+          "p95": 39.25,
+          "min": 35.18,
+          "max": 40.046
         },
         "area_px": {
-          "mean": 3122.244,
-          "median": 2817.006,
-          "p95": 6726.521,
-          "min": 877.793,
-          "max": 6796.589
+          "mean": 6049.059,
+          "median": 6047.043,
+          "p95": 6480.281,
+          "min": 5343.393,
+          "max": 6578.4
         },
         "world_path_m": 0.0,
-        "visible_ratio": 0.1826,
-        "occlusion_events": [
-          {
-            "start_s": 2.69,
-            "dur_s": 1.53
-          }
-        ]
+        "visible_ratio": 0.8816,
+        "occlusion_events": []
       },
       "armor_16": {
         "distance_m": {
-          "mean": 3.981,
-          "median": 3.495,
-          "p95": 6.316,
-          "min": 2.152,
-          "max": 6.538
+          "mean": 2.299,
+          "median": 2.293,
+          "p95": 2.389,
+          "min": 2.172,
+          "max": 2.542
         },
         "speed_mps": {
-          "mean": 0.026,
+          "mean": 0.017,
           "median": 0.0,
-          "p95": 0.021,
+          "p95": 0.0,
           "min": 0.0,
-          "max": 1.818
+          "max": 3.135
         },
         "yaw_rate_dps": {
-          "mean": 0.741,
-          "median": 0.378,
-          "p95": 1.447,
+          "mean": 0.314,
+          "median": 0.0,
+          "p95": 0.0,
           "min": 0.0,
-          "max": 48.33
+          "max": 61.248
         },
         "view_angle_deg": {
-          "mean": 56.122,
-          "median": 55.692,
-          "p95": 60.697,
-          "min": 54.946,
-          "max": 61.026
+          "mean": 58.23,
+          "median": 58.257,
+          "p95": 60.58,
+          "min": 55.741,
+          "max": 60.9
         },
         "area_px": {
-          "mean": 2476.963,
-          "median": 1881.484,
-          "p95": 5866.95,
-          "min": 610.858,
-          "max": 6183.049
+          "mean": 5141.62,
+          "median": 5101.136,
+          "p95": 5557.091,
+          "min": 4457.102,
+          "max": 6000.102
         },
         "world_path_m": 0.0,
-        "visible_ratio": 0.2609,
+        "visible_ratio": 0.9441,
         "occlusion_events": []
       },
       "armor_17": {
         "distance_m": {
-          "mean": 3.612,
-          "median": 3.125,
-          "p95": 5.949,
-          "min": 1.786,
-          "max": 6.172
+          "mean": 1.929,
+          "median": 1.922,
+          "p95": 2.021,
+          "min": 1.806,
+          "max": 2.178
         },
         "speed_mps": {
-          "mean": 0.025,
+          "mean": 0.015,
           "median": 0.0,
-          "p95": 0.021,
+          "p95": 0.0,
           "min": 0.0,
-          "max": 1.818
+          "max": 2.735
         },
         "yaw_rate_dps": {
-          "mean": 1.04,
-          "median": 0.683,
-          "p95": 1.84,
+          "mean": 0.794,
+          "median": 0.48,
+          "p95": 0.98,
           "min": 0.0,
-          "max": 48.331
+          "max": 61.249
         },
         "view_angle_deg": {
-          "mean": 37.731,
-          "median": 37.991,
-          "p95": 40.024,
-          "min": 30.929,
-          "max": 40.039
+          "mean": 34.526,
+          "median": 34.47,
+          "p95": 37.476,
+          "min": 31.325,
+          "max": 38.069
         },
         "area_px": {
-          "mean": 4020.042,
-          "median": 3120.697,
-          "p95": 9917.017,
-          "min": 873.09,
-          "max": 10262.533
+          "mean": 8644.443,
+          "median": 8636.047,
+          "p95": 9257.496,
+          "min": 7562.528,
+          "max": 9854.54
         },
         "world_path_m": 0.0,
-        "visible_ratio": 0.1391,
+        "visible_ratio": 0.8454,
         "occlusion_events": [
           {
-            "start_s": 4.52,
-            "dur_s": 2.03
-          },
-          {
-            "start_s": 7.78,
-            "dur_s": 0.33
+            "start_s": 3.7,
+            "dur_s": 2.86
           }
         ]
       }
     },
     "sheet": "metrics/s0_review/sceneA_sheet.jpg"
-  },
-  "B": {
-    "scene": "B",
-    "desc": "匀速平移 ~2 m/s",
-    "duration_s": 27.47,
-    "images": 5690,
-    "fps": 207.1,
-    "topics": {
-      "/odom_pose": 5763,
-      "/muzzle_pose": 5763,
-      "/image_raw": 5690,
-      "/tf": 5831,
-      "/gimbal_pose": 5864,
-      "/camera_pose": 5813,
-      "/camera_info": 5850
-    },
-    "verdict": "可疑（巡航 0.00 m/s，要求 ~2）",
-    "detail": "巡航速度中位 0.00 m/s（只统计在动的采样）；含掉头的全程中位 0.34 m/s",
-    "target_armor": "armor_14",
-    "target": {
-      "distance_m": {
-        "mean": 2.63,
-        "median": 2.41,
-        "p95": 3.8,
-        "min": 2.016,
-        "max": 3.804
-      },
-      "speed_mps": {
-        "mean": 0.299,
-        "median": 0.335,
-        "p95": 0.613,
-        "min": 0.0,
-        "max": 0.794
-      },
-      "yaw_rate_dps": {
-        "mean": 1.279,
-        "median": 0.0,
-        "p95": 7.808,
-        "min": 0.0,
-        "max": 16.609
-      },
-      "view_angle_deg": {
-        "mean": 53.835,
-        "median": 57.774,
-        "p95": 73.498,
-        "min": 29.471,
-        "max": 78.442
-      },
-      "area_px": {
-        "mean": 4032.253,
-        "median": 3806.41,
-        "p95": 5964.764,
-        "min": 2819.732,
-        "max": 6198.505
-      },
-      "world_path_m": 4.499,
-      "visible_ratio": 0.2652,
-      "occlusion_events": [
-        {
-          "start_s": 1.85,
-          "dur_s": 2.26
-        },
-        {
-          "start_s": 4.82,
-          "dur_s": 3.42
-        },
-        {
-          "start_s": 8.87,
-          "dur_s": 9.14
-        },
-        {
-          "start_s": 20.57,
-          "dur_s": 0.4
-        },
-        {
-          "start_s": 21.2,
-          "dur_s": 2.0
-        }
-      ]
-    },
-    "scene_metrics": {
-      "max_speed_mps": 0.335,
-      "cruise_speed_mps": 0.0,
-      "max_yaw_rate_dps": 0.43,
-      "max_occlusion_s": 9.14,
-      "max_view_angle_deg": 59.7,
-      "distance_range_m": [
-        1.31,
-        2.66
-      ]
-    },
-    "per_armor": {
-      "armor_10": {
-        "distance_m": {
-          "mean": 1.348,
-          "median": 1.341,
-          "p95": 1.449,
-          "min": 1.287,
-          "max": 1.574
-        },
-        "speed_mps": {
-          "mean": 0.0,
-          "median": 0.0,
-          "p95": 0.0,
-          "min": 0.0,
-          "max": 0.0
-        },
-        "yaw_rate_dps": {
-          "mean": 0.0,
-          "median": 0.0,
-          "p95": 0.0,
-          "min": 0.0,
-          "max": 0.0
-        },
-        "view_angle_deg": {
-          "mean": 50.114,
-          "median": 50.113,
-          "p95": 50.113,
-          "min": 50.113,
-          "max": 50.248
-        },
-        "area_px": {
-          "mean": 21685.129,
-          "median": 21685.443,
-          "p95": 21685.459,
-          "min": 21613.907,
-          "max": 21685.459
-        },
-        "world_path_m": 0.0,
-        "visible_ratio": 0.9319,
-        "occlusion_events": []
-      },
-      "armor_11": {
-        "distance_m": {
-          "mean": 1.612,
-          "median": 1.606,
-          "p95": 1.703,
-          "min": 1.562,
-          "max": 1.834
-        },
-        "speed_mps": {
-          "mean": 0.0,
-          "median": 0.0,
-          "p95": 0.0,
-          "min": 0.0,
-          "max": 0.0
-        },
-        "yaw_rate_dps": {
-          "mean": 0.0,
-          "median": 0.0,
-          "p95": 0.0,
-          "min": 0.0,
-          "max": 0.0
-        },
-        "view_angle_deg": {
-          "mean": 53.619,
-          "median": 53.613,
-          "p95": 53.613,
-          "min": 53.613,
-          "max": 54.228
-        },
-        "area_px": {
-          "mean": 15656.99,
-          "median": 15659.889,
-          "p95": 15659.903,
-          "min": 15291.135,
-          "max": 15659.904
-        },
-        "world_path_m": 0.0,
-        "visible_ratio": 0.0,
-        "occlusion_events": []
-      },
-      "armor_12": {
-        "distance_m": {
-          "mean": 1.624,
-          "median": 1.617,
-          "p95": 1.725,
-          "min": 1.567,
-          "max": 1.862
-        },
-        "speed_mps": {
-          "mean": 0.0,
-          "median": 0.0,
-          "p95": 0.0,
-          "min": 0.0,
-          "max": 0.0
-        },
-        "yaw_rate_dps": {
-          "mean": 0.23,
-          "median": 0.221,
-          "p95": 0.286,
-          "min": 0.166,
-          "max": 0.936
-        },
-        "view_angle_deg": {
-          "mean": 55.43,
-          "median": 55.432,
-          "p95": 55.432,
-          "min": 55.145,
-          "max": 55.432
-        },
-        "area_px": {
-          "mean": 12651.641,
-          "median": 12650.658,
-          "p95": 12650.666,
-          "min": 12581.767,
-          "max": 12818.02
-        },
-        "world_path_m": 0.0,
-        "visible_ratio": 0.0,
-        "occlusion_events": []
-      },
-      "armor_13": {
-        "distance_m": {
-          "mean": 1.319,
-          "median": 1.313,
-          "p95": 1.409,
-          "min": 1.268,
-          "max": 1.53
-        },
-        "speed_mps": {
-          "mean": 0.0,
-          "median": 0.0,
-          "p95": 0.0,
-          "min": 0.0,
-          "max": 0.0
-        },
-        "yaw_rate_dps": {
-          "mean": 0.445,
-          "median": 0.427,
-          "p95": 0.553,
-          "min": 0.32,
-          "max": 1.809
-        },
-        "view_angle_deg": {
-          "mean": 51.396,
-          "median": 51.396,
-          "p95": 51.396,
-          "min": 51.205,
-          "max": 51.396
-        },
-        "area_px": {
-          "mean": 21714.65,
-          "median": 21713.196,
-          "p95": 21713.214,
-          "min": 21713.196,
-          "max": 22063.436
-        },
-        "world_path_m": 0.0,
-        "visible_ratio": 0.9319,
-        "occlusion_events": []
-      },
-      "armor_14": {
-        "distance_m": {
-          "mean": 2.63,
-          "median": 2.41,
-          "p95": 3.8,
-          "min": 2.016,
-          "max": 3.804
-        },
-        "speed_mps": {
-          "mean": 0.299,
-          "median": 0.335,
-          "p95": 0.613,
-          "min": 0.0,
-          "max": 0.794
-        },
-        "yaw_rate_dps": {
-          "mean": 1.279,
-          "median": 0.0,
-          "p95": 7.808,
-          "min": 0.0,
-          "max": 16.609
-        },
-        "view_angle_deg": {
-          "mean": 53.835,
-          "median": 57.774,
-          "p95": 73.498,
-          "min": 29.471,
-          "max": 78.442
-        },
-        "area_px": {
-          "mean": 4032.253,
-          "median": 3806.41,
-          "p95": 5964.764,
-          "min": 2819.732,
-          "max": 6198.505
-        },
-        "world_path_m": 4.499,
-        "visible_ratio": 0.2652,
-        "occlusion_events": [
-          {
-            "start_s": 1.85,
-            "dur_s": 2.26
-          },
-          {
-            "start_s": 4.82,
-            "dur_s": 3.42
-          },
-          {
-            "start_s": 8.87,
-            "dur_s": 9.14
-          },
-          {
-            "start_s": 20.57,
-            "dur_s": 0.4
-          },
-          {
-            "start_s": 21.2,
-            "dur_s": 2.0
-          }
-        ]
-      },
-      "armor_15": {
-        "distance_m": {
-          "mean": 2.925,
-          "median": 2.66,
-          "p95": 4.164,
-          "min": 2.357,
-          "max": 4.171
-        },
-        "speed_mps": {
-          "mean": 0.299,
-          "median": 0.334,
-          "p95": 0.614,
-          "min": 0.0,
-          "max": 0.77
-        },
-        "yaw_rate_dps": {
-          "mean": 1.307,
-          "median": 0.241,
-          "p95": 7.8,
-          "min": 0.0,
-          "max": 16.615
-        },
-        "view_angle_deg": {
-          "mean": 45.564,
-          "median": 42.585,
-          "p95": 63.446,
-          "min": 33.575,
-          "max": 63.446
-        },
-        "area_px": {
-          "mean": 3981.082,
-          "median": 4207.658,
-          "p95": 6456.311,
-          "min": 1696.734,
-          "max": 7723.62
-        },
-        "world_path_m": 4.806,
-        "visible_ratio": 0.4803,
-        "occlusion_events": [
-          {
-            "start_s": 9.4,
-            "dur_s": 8.07
-          },
-          {
-            "start_s": 22.29,
-            "dur_s": 0.91
-          }
-        ]
-      },
-      "armor_16": {
-        "distance_m": {
-          "mean": 2.878,
-          "median": 2.528,
-          "p95": 4.333,
-          "min": 2.333,
-          "max": 4.335
-        },
-        "speed_mps": {
-          "mean": 0.298,
-          "median": 0.335,
-          "p95": 0.614,
-          "min": 0.0,
-          "max": 0.796
-        },
-        "yaw_rate_dps": {
-          "mean": 1.314,
-          "median": 0.299,
-          "p95": 7.815,
-          "min": 0.0,
-          "max": 16.604
-        },
-        "view_angle_deg": {
-          "mean": 57.796,
-          "median": 59.705,
-          "p95": 81.22,
-          "min": 36.425,
-          "max": 85.289
-        },
-        "area_px": {
-          "mean": 3559.028,
-          "median": 3804.392,
-          "p95": 4981.686,
-          "min": 1944.296,
-          "max": 5310.236
-        },
-        "world_path_m": 5.57,
-        "visible_ratio": 0.6595,
-        "occlusion_events": [
-          {
-            "start_s": 10.45,
-            "dur_s": 6.39
-          },
-          {
-            "start_s": 22.49,
-            "dur_s": 0.49
-          }
-        ]
-      },
-      "armor_17": {
-        "distance_m": {
-          "mean": 2.555,
-          "median": 2.233,
-          "p95": 3.97,
-          "min": 1.963,
-          "max": 3.973
-        },
-        "speed_mps": {
-          "mean": 0.298,
-          "median": 0.335,
-          "p95": 0.611,
-          "min": 0.0,
-          "max": 0.807
-        },
-        "yaw_rate_dps": {
-          "mean": 1.293,
-          "median": 0.192,
-          "p95": 7.798,
-          "min": 0.0,
-          "max": 16.604
-        },
-        "view_angle_deg": {
-          "mean": 39.199,
-          "median": 35.369,
-          "p95": 63.317,
-          "min": 11.408,
-          "max": 63.317
-        },
-        "area_px": {
-          "mean": 5863.51,
-          "median": 6295.869,
-          "p95": 11843.419,
-          "min": 1546.223,
-          "max": 14415.868
-        },
-        "world_path_m": 5.049,
-        "visible_ratio": 0.4086,
-        "occlusion_events": [
-          {
-            "start_s": 4.93,
-            "dur_s": 0.74
-          },
-          {
-            "start_s": 9.73,
-            "dur_s": 7.43
-          },
-          {
-            "start_s": 22.49,
-            "dur_s": 1.21
-          }
-        ]
-      }
-    },
-    "sheet": "metrics/s0_review/sceneB_sheet.jpg"
   }
 }

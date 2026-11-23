@@ -105,6 +105,17 @@ if s2 != s:
     print(f"  [vehicle] max_speed → {v} m/s")
 PYV
 }
+set_vehicle_kv() {   # set_vehicle_kv <key> <value>
+  python3 - "$CFG" "$1" "$2" <<'PYKV'
+import re, sys
+p, key, val = sys.argv[1], sys.argv[2], sys.argv[3]
+s = open(p, encoding='utf-8').read()
+s2 = re.sub(rf'(?m)^{re.escape(key)}\s*=\s*[0-9.]+', f'{key} = {val}', s, count=1)
+if s2 != s:
+    open(p, 'w', encoding='utf-8').write(s2)
+    print(f"  [vehicle] {key} → {val}")
+PYKV
+}
 restore_vehicle_speed() { [ -f "$CFG_BAK" ] && cp "$CFG_BAK" "$CFG" && rm -f "$CFG_BAK" || true; }
 
 say "2/6 录制配置（关 preview；present_mode 恢复不限帧）"
@@ -214,22 +225,25 @@ keyup()   { xdotool keyup   "$@" 2>/dev/null || true; }
 run_driver() { python3 "$DRIVER" "$@"; }
 
 scenario_A() {   # 静止：三档距离 3 / 6 / 10 m，每档静止 DUR/3 秒
-  local each=$((DUR / 3)); [ "$each" -lt 3 ] && each=3
-  ok "A：闭环开到 3/6/10 m，每档静止 ${each}s（需要窗口聚焦）"
-  # 仿真场地只有约 ±3.5 m，10 m 单向到不了；先录 3/6 m（6 m 靠「两头拉」实现）
-  run_driver --mode distance --targets 3 6 --dwell "$each" --tol 0.18 \
+  # 场地限制（实测）：单向边界 ~4.7 m；「两头拉」到 6 m 会把假人推到墙后（画面被墙挡住）。
+  # 只录 3 m 档，保证画面里目标始终可见；6/10 m 的限制写进 README。
+  local each=$((DUR - 4)); [ "$each" -lt 10 ] && each=10
+  ok "A：闭环到 ${A_TARGETS:-3} m，静止保持 ${each}s（需要窗口聚焦）"
+  run_driver --mode distance --targets ${A_TARGETS:-3} --dwell "$each" --tol 0.18 \
     || warn "闭环驱动失败，退化为静止不动：$(sleep 1; echo ok)"
 }
-scenario_B() {   # 匀速平移：闭环控制目标速度 ~2 m/s（来回平移，保持不出画）
-  ok "B：闭环控制目标速度 2 m/s，持续 ${DUR}s"
-  run_driver --mode speed --target "${VEH_SPEED_B:-2.0}" --duration "$DUR" --span 2.2 \
-    || warn "闭环驱动失败；手动退化为按住 J：$(keydown j; sleep "$DUR"; keyup j; echo ok)"
+scenario_B() {   # 匀速平移：已改「匀速圆周平移」（场地太小，20 s 直线 2 m/s 需 40 m）
+  ok "B：匀速圆周平移，线速度 ${VEH_SPEED_B:-2.0} m/s、半径 ${VEH_RADIUS:-1.2} m，持续 ${DUR}s"
+  run_driver --mode circle --speed "${VEH_SPEED_B:-2.0}" --radius "${VEH_RADIUS:-1.2}" \
+    --duration "$DUR" \
+    || warn "圆周驱动失败；退化为按住 J：$(keydown j; sleep "$DUR"; keyup j; echo ok)"
 }
 scenario_C() {   # 自转 + 平移：假人底盘自转（U 切换）+ 闭环 ~1.5 m/s 平移
   ok "C：假人底盘自转 + 闭环平移 1.5 m/s"
   xdotool key u 2>/dev/null || true
   sleep 0.5
   run_driver --mode speed --target 1.5 --duration "$DUR" --span 2.0 \
+    --axis-file /tmp/scene_C_axis.json \
     || warn "闭环驱动失败；退化为按住 u+j：$(keydown u; keydown j; sleep "$DUR"; keyup u; keyup j; echo ok)"
   xdotool key u 2>/dev/null || true
 }
@@ -257,13 +271,25 @@ run_scene() {
   # 按场景设置车辆速度上限（A/B 用 2 m/s 才能稳定匀速；C 用 1.5）
   case "$name" in
     A) set_vehicle_speed "${VEH_SPEED_A:-2.0}" ;;
-    B) set_vehicle_speed "${VEH_SPEED_B:-2.0}" ;;
+    B) set_vehicle_speed "${VEH_SPEED_B:-2.0}"
+       set_vehicle_kv rotation_speed "${VEH_OMEGA_B:-1.67}" ;;   # 2.0 m/s ÷ 1.2 m 半径
     C) set_vehicle_speed "${VEH_SPEED_C:-1.5}" ;;
     *) set_vehicle_speed "${VEH_SPEED_OTHER:-6.0}" ;;
   esac
   if [ "${RESTART_PER_SCENE:-1}" = "1" ] && [ "${KEEP_SIM:-0}" != "1" ]; then
     start_sim_fresh
   fi
+  # B/C 需要「匀速平移」：录制前先探测自由方向并归位（这些动作不录进 bag）
+  case "$name" in
+    C)
+      if [ "${PREP_AXIS:-1}" = "1" ]; then
+        ok "${name}：录制前探测自由方向并归位（不入 bag）"
+        run_driver --mode prep --span "${VEH_SPAN:-2.2}" --probe-dur 3.0 \
+          --axis-file "/tmp/scene_${name}_axis.json" \
+          || warn "prep 失败，录制时会退化为现场探测"
+      fi
+      ;;
+  esac
   if [ -d "$out" ]; then
     mv "$out" "$out.old.$(date +%s)"
     warn "旧的 scene$name 已改名保留"

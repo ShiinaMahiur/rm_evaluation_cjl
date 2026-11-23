@@ -348,11 +348,13 @@ def review_scene(bag_dir, scene, sample_hz, out_dir, sheet_n=8):
                     all_d.append(float(np.linalg.norm(world[aid]["t"] - c)))
         def covered(x, tol=0.5):
             return any(abs(d - x) <= tol for d in all_d)
-        ok = (max_speed < 0.3) and covered(3.0) and covered(6.0)
-        verdict = ("符合（静止；覆盖 3/6 m）" if ok
-                   else f"可疑（静止={max_speed < 0.3}, 3m覆盖={covered(3.0)}, 6m覆盖={covered(6.0)}）")
+        ok = (max_speed < 0.3) and covered(3.0)
+        cov = [x for x in (3.0, 6.0, 10.0) if covered(x)]
+        verdict = ("符合（静止；覆盖 " + "/".join(f"{c:.0f}" for c in cov) + " m）" if ok
+                   else f"可疑（静止={max_speed < 0.3}, 3m覆盖={covered(3.0)}）")
         detail = (f"画面内目标距离覆盖 {min(all_d):.1f}~{max(all_d):.1f} m；"
-                  f"3 m±0.5 有={covered(3.0)}，6 m±0.5 有={covered(6.0)}（10 m 受仿真场地限制）")
+                  f"覆盖档位={cov or '无'}；"
+                  f"注：仿真场地单向约 4.7 m，6/10 m 需把假人推到墙后（画面被挡）→ 不可用")
     elif scene == "B":
         ok = 1.5 <= max_cruise <= 2.6
         verdict = (f"符合（巡航 {max_cruise:.2f} m/s）" if ok
