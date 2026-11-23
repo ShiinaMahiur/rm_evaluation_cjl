@@ -1,0 +1,14 @@
+# S4 规划器（trajectory_planner）参数
+trajectory_planner:
+  ros__parameters:
+    bullet_speed: 25.0     # 弹丸初速 (m/s)，与仿真 config.toml [projectile] speed 一致
+    gravity: 9.81          # 重力加速度 (m/s^2)，仿真无空气阻力
+    method: exact          # 弹道补偿方法：exact（解析二次解）| approx（近似法）
+    fire_mode: single      # single：每 fire_interval 打一发（测首发命中）| auto：连发（测连续命中）| off
+    fire_interval: 1.0     # single 模式开火间隔 (s)
+    auto_rate: 10.0        # auto 模式开火频率 (Hz)，仿真自身 cooldown 50 ms
+    max_distance: 12.0     # 超出该水平距离不开火 (m)
+    min_distance: 0.8      # 太近不开火 (m)
+    settle_time: 0.35      # 目标捕获后等云台稳定的时间 (s)
+    lead_iters: 4          # 提前量不动点迭代次数
+    angle_tol_deg: 2.0     # 预留：角度误差阈值

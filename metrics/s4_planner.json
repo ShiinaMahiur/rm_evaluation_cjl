@@ -1,0 +1,186 @@
+{
+  "model": "ballistic exact/approx + lead (fixed-point)",
+  "bullet_speed": 25.0,
+  "gravity": 9.81,
+  "scenes": {
+    "C": {
+      "single_exact": {
+        "method": "exact",
+        "target": "armor_11",
+        "shots": 22,
+        "hits": 22,
+        "hit_rate": 1.0,
+        "miss_distance_m": {
+          "mean": 0.0089,
+          "median": 0.0095,
+          "p95": 0.0103
+        },
+        "t_flight_ms": {
+          "mean": 59.6
+        }
+      },
+      "single_approx": {
+        "method": "approx",
+        "target": "armor_11",
+        "shots": 22,
+        "hits": 22,
+        "hit_rate": 1.0,
+        "miss_distance_m": {
+          "mean": 0.0089,
+          "median": 0.0095,
+          "p95": 0.0103
+        },
+        "t_flight_ms": {
+          "mean": 59.6
+        }
+      },
+      "auto_exact": {
+        "method": "exact",
+        "target": "armor_11",
+        "shots": 328,
+        "hits": 328,
+        "hit_rate": 1.0,
+        "miss_distance_m": {
+          "mean": 0.009,
+          "median": 0.0095,
+          "p95": 0.0103
+        },
+        "t_flight_ms": {
+          "mean": 59.6
+        }
+      },
+      "auto_approx": {
+        "method": "approx",
+        "target": "armor_11",
+        "shots": 328,
+        "hits": 328,
+        "hit_rate": 1.0,
+        "miss_distance_m": {
+          "mean": 0.009,
+          "median": 0.0095,
+          "p95": 0.0104
+        },
+        "t_flight_ms": {
+          "mean": 59.6
+        }
+      }
+    }
+  },
+  "method_comparison": {
+    "note": "枪口高 1.2 m、板中心 0.33 m；miss = 弹道穿过目标平面时的高度误差(近似)",
+    "rows": [
+      {
+        "distance_m": 2,
+        "pitch_approx_deg": -22.748,
+        "pitch_exact_deg": -22.616,
+        "pitch_diff_deg": -0.133,
+        "t_flight_ms": 86.7,
+        "drop_cm": 3.7,
+        "miss_approx_cm": 0.19,
+        "miss_exact_cm": 0.39
+      },
+      {
+        "distance_m": 4,
+        "pitch_approx_deg": -10.543,
+        "pitch_exact_deg": -10.483,
+        "pitch_diff_deg": -0.06,
+        "t_flight_ms": 162.7,
+        "drop_cm": 13.0,
+        "miss_approx_cm": 0.05,
+        "miss_exact_cm": 0.25
+      },
+      {
+        "distance_m": 6,
+        "pitch_approx_deg": -5.592,
+        "pitch_exact_deg": -5.567,
+        "pitch_diff_deg": -0.025,
+        "t_flight_ms": 241.1,
+        "drop_cm": 28.5,
+        "miss_approx_cm": 0.16,
+        "miss_exact_cm": 0.05
+      },
+      {
+        "distance_m": 8,
+        "pitch_approx_deg": -2.632,
+        "pitch_exact_deg": -2.624,
+        "pitch_diff_deg": -0.008,
+        "t_flight_ms": 320.3,
+        "drop_cm": 50.3,
+        "miss_approx_cm": 0.12,
+        "miss_exact_cm": 0.01
+      },
+      {
+        "distance_m": 10,
+        "pitch_approx_deg": -0.488,
+        "pitch_exact_deg": -0.488,
+        "pitch_diff_deg": -0.0,
+        "t_flight_ms": 400.0,
+        "drop_cm": 78.5,
+        "miss_approx_cm": 0.2,
+        "miss_exact_cm": 0.19
+      }
+    ],
+    "rows_h0": [
+      {
+        "distance_m": 2,
+        "pitch_approx_deg": 0.899,
+        "pitch_exact_deg": 0.899,
+        "pitch_diff_deg": -0.0,
+        "t_flight_ms": 80.0
+      },
+      {
+        "distance_m": 4,
+        "pitch_approx_deg": 1.798,
+        "pitch_exact_deg": 1.8,
+        "pitch_diff_deg": -0.002,
+        "t_flight_ms": 160.1
+      },
+      {
+        "distance_m": 6,
+        "pitch_approx_deg": 2.696,
+        "pitch_exact_deg": 2.702,
+        "pitch_diff_deg": -0.006,
+        "t_flight_ms": 240.3
+      },
+      {
+        "distance_m": 8,
+        "pitch_approx_deg": 3.593,
+        "pitch_exact_deg": 3.607,
+        "pitch_diff_deg": -0.014,
+        "t_flight_ms": 320.6
+      },
+      {
+        "distance_m": 10,
+        "pitch_approx_deg": 4.487,
+        "pitch_exact_deg": 4.515,
+        "pitch_diff_deg": -0.028,
+        "t_flight_ms": 401.2
+      }
+    ]
+  },
+  "live_sim": {
+    "note": "真值驱动 S4（/tf 直接发 /tracker/target），走完整云台+弹道+开火链路；默认场景里传统检测检出率低，S1→S3 无法稳定供观测，故 S4 单独验收",
+    "target_distance_m": [
+      1.2,
+      2.4
+    ],
+    "single": {
+      "shots": 15,
+      "hits": 15,
+      "hit_rate": 1.0,
+      "fire_interval_s": 0.5
+    },
+    "auto": {
+      "shots": 13,
+      "hits": 13,
+      "hit_rate": 1.0,
+      "auto_rate_hz": 10.0
+    },
+    "cumulative": {
+      "shots": 44,
+      "hits": 44,
+      "hit_rate": 1.0
+    },
+    "source": "仿真器 [diag] 日志统计（为验收给仿真加了 shots/hits 计数日志，见 patches/）"
+  }
+}

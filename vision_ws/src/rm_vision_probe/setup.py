@@ -23,6 +23,7 @@ setup(
             'armor_solver = rm_vision_probe.armor_solver:main',
             'gimbal_cmd = rm_vision_probe.gimbal_cmd:main',
             'armor_tracker = rm_vision_probe.armor_tracker:main',
+            'trajectory_planner = rm_vision_probe.trajectory_planner:main',
         ],
     },
 )
