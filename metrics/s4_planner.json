@@ -207,6 +207,15 @@
       "hits": 38,
       "hit_rate": 1.0
     },
-    "source": "仿真器 [diag] shots/hits 日志"
+    "source": "仿真器 [diag] shots/hits 日志",
+    "demo_one_shot_run": {
+      "script": "scripts/demo_live.sh --fire auto",
+      "note": "一条命令跑完：开 preview → 起仿真 → 起 S1~S4 → 自动搜索瞄准 → 自动开火；本次运行仿真统计 50/50",
+      "shots": 50,
+      "hits": 50,
+      "hit_rate": 1.0,
+      "detector_rate": 0.893,
+      "target_distance_m": 1.72
+    }
   }
 }

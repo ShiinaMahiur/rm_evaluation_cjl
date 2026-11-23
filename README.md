@@ -90,6 +90,8 @@ ros2 launch rm_vision_probe vision.launch.py
 | `scripts/gimbal_diag.py` | 云台指令通路诊断（发绝对角度 ↔ 读 `/gimbal_pose`） | 排障 |
 | **`scripts/review_bags.py`** | **S0 数据集自查**：A~E 抽帧拼图 + 场景特征量化（速度/自转/遮挡/视线夹角）并与考核定义对拍 | 数据集验收 |
 | **`scripts/scene_driver.py`** | **闭环场景驱动**：读 `/tf` 实时测距测速 + xdotool 按键反馈，替代「按固定时长盲按」（需 X11 后端） | 数据集采集（A/B/C） |
+| **`scripts/demo_live.sh`** | **一键复现「自瞄打靶」演示**：安全开 preview → 起仿真 → 编译并起 S1~S4 → 自动搜索/瞄准/开火 → 打印命中统计；Ctrl+C 自动收尾 | 录屏 / 答辩演示 |
+| `scripts/aim_search.py` | 云台缓慢扫视直到检测到装甲板，对准最近的敌方目标后交给 S4（自瞄的「搜索」环节） | 演示初始化 |
 
 ```bash
 # S0 验收演示：一键回放 + 云台跟随
@@ -109,6 +111,12 @@ NO_FOLLOW=1 ~/replay_bag.sh /media/$USER/RJ/rm_vision/bags/sceneB
 
 # 云台指令通路诊断（排查 /rm_gimbal/cmd）
 python3 ~/gimbal_diag.py
+
+# 一键复现「自瞄打靶」演示（会自动开 preview、重启仿真、起 S1~S4、自动开火）
+bash scripts/demo_live.sh                 # 连发（默认）
+bash scripts/demo_live.sh --fire single   # 每 0.5 s 一发
+bash scripts/demo_live.sh --fire off      # 只瞄准不开火
+bash scripts/demo_live.sh --keep-sim      # 复用已在跑的仿真器
 ```
 
 ### 1.5 怎么自己看 / 审查 A~E 的 bag
