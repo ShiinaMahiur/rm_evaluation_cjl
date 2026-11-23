@@ -1,0 +1,10 @@
+# S3 估计器（armor_tracker）参数
+# Q/R 由 scripts/eval_s3_ekf.py 从数据标定（见 metrics/s3_ekf.json 的 calibration 字段）
+armor_tracker:
+  ros__parameters:
+    sigma_a: 0.2         # 过程噪声：加速度 std (m/s^2)，GT 轨迹二阶差分鲁棒 std 估计
+    sigma_alpha: 2.756   # 过程噪声：角加速度 std (rad/s^2)
+    sigma_pos: 0.026     # 观测噪声：S2 位置残差 std (m)
+    sigma_yaw: 0.35      # 观测噪声：装甲板朝向 std (rad)（S2 姿态有 ~25° 误差）
+    gate_m: 1.0          # 关联门限：观测与预测位置差超过该值视为跳变→重捕获
+    lost_frames: 1       # 连续多少帧无观测判丢失（帧间隔 ~5-10 ms）

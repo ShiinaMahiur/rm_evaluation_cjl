@@ -1,0 +1,83 @@
+{
+  "model": "EKF8 CV+CA(yaw)",
+  "step": 2,
+  "calibration": {
+    "sigma_pos_m": 0.0317,
+    "sigma_a_mps2": 0.2,
+    "sigma_alpha_radps2": 2.756,
+    "n_residuals": 1844
+  },
+  "scenes": {
+    "C": {
+      "target_id": "armor_11",
+      "frames": 1836,
+      "det_frames": 1666,
+      "det_rate": 0.9074,
+      "pred_err_m": {
+        "100ms": {
+          "mean": 0.0273,
+          "p95": 0.0442,
+          "n": 1666
+        },
+        "200ms": {
+          "mean": 0.0276,
+          "p95": 0.0457,
+          "n": 1666
+        }
+      },
+      "miss_runs": [
+        {
+          "gap_ms": 512.2
+        },
+        {
+          "gap_ms": 514.8
+        },
+        {
+          "gap_ms": 519.7
+        },
+        {
+          "gap_ms": 516.7
+        }
+      ],
+      "lost_latency_ms": {
+        "mean": 25.0,
+        "max": 49.9,
+        "n": 4
+      },
+      "recapture_ms": {
+        "mean": 0.0,
+        "note": "首帧观测即更新（重捕获 = 1 帧 ≈ 5~10 ms）"
+      },
+      "injected_occlusion": [
+        {
+          "gap_ms": 500.0,
+          "lost_latency_ms": 22.9,
+          "recapture_ms": 0.0
+        },
+        {
+          "gap_ms": 500.0,
+          "lost_latency_ms": 6.9,
+          "recapture_ms": 9.9
+        },
+        {
+          "gap_ms": 500.0,
+          "lost_latency_ms": 49.9,
+          "recapture_ms": 8.1
+        },
+        {
+          "gap_ms": 500.0,
+          "lost_latency_ms": 20.5,
+          "recapture_ms": 0.8
+        }
+      ]
+    }
+  },
+  "notes": {
+    "evaluated_scenes": [
+      "C"
+    ],
+    "D/E": "S1 传统法在遮挡/大角度斜视检测率约 0，S3 无可评估观测；不是估计器问题",
+    "lost_latency": "1 帧无观测即判丢失，延迟 ≈ 帧间隔（本数据 ~10 ms）",
+    "recapture": "目标重现的首帧即更新（0~1 帧）"
+  }
+}

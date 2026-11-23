@@ -22,6 +22,7 @@ setup(
             'detector_traditional = rm_vision_probe.detector_traditional:main',
             'armor_solver = rm_vision_probe.armor_solver:main',
             'gimbal_cmd = rm_vision_probe.gimbal_cmd:main',
+            'armor_tracker = rm_vision_probe.armor_tracker:main',
         ],
     },
 )
