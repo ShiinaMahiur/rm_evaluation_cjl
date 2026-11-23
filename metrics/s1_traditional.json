@@ -6,40 +6,40 @@
     "min_aspect": 1.5,
     "gap_ratio": [
       0.6,
-      3.0
+      4.2
     ],
     "min_digit": 0.04
   },
-  "note": "detection_rate = 至少检出 1 块装甲板的帧占比（无人工标注的近似指标）",
+  "note": "2026-11-23：放宽 gap_ratio 3.0→4.2 并新增灯宽一致性约束 max_dw=0.60；E（大角度斜视）18.3%→65.7%，A 89.1%→93.1%（同 bag 对比），B/C/D 不变。A/B 已重录（数据本身变化），旧 100% 不可直接对比。",
   "results": [
     {
       "scene": "A",
-      "frames_processed": 772,
+      "frames_processed": 1304,
       "step": 5,
-      "frames_with_detection": 772,
-      "detection_rate": 1.0,
-      "total_armors": 772,
-      "avg_armors_per_frame": 1.0,
-      "latency_ms_mean": 8.754,
-      "latency_ms_p50": 8.74,
-      "latency_ms_p95": 10.682,
-      "capacity_fps": 114.2,
-      "eval_wall_seconds": 31.1,
+      "frames_with_detection": 1210,
+      "detection_rate": 0.9279,
+      "total_armors": 1211,
+      "avg_armors_per_frame": 0.929,
+      "latency_ms_mean": 13.148,
+      "latency_ms_p50": 11.975,
+      "latency_ms_p95": 21.879,
+      "capacity_fps": 76.1,
+      "eval_wall_seconds": 80.2,
       "samples": 3
     },
     {
       "scene": "B",
-      "frames_processed": 741,
+      "frames_processed": 1028,
       "step": 5,
-      "frames_with_detection": 741,
-      "detection_rate": 1.0,
-      "total_armors": 843,
-      "avg_armors_per_frame": 1.138,
-      "latency_ms_mean": 7.514,
-      "latency_ms_p50": 7.04,
-      "latency_ms_p95": 10.201,
-      "capacity_fps": 133.1,
-      "eval_wall_seconds": 27.0,
+      "frames_with_detection": 661,
+      "detection_rate": 0.643,
+      "total_armors": 661,
+      "avg_armors_per_frame": 0.643,
+      "latency_ms_mean": 13.674,
+      "latency_ms_p50": 12.595,
+      "latency_ms_p95": 21.588,
+      "capacity_fps": 73.1,
+      "eval_wall_seconds": 65.7,
       "samples": 3
     },
     {
@@ -48,13 +48,13 @@
       "step": 5,
       "frames_with_detection": 735,
       "detection_rate": 1.0,
-      "total_armors": 1008,
-      "avg_armors_per_frame": 1.371,
-      "latency_ms_mean": 7.135,
-      "latency_ms_p50": 6.866,
-      "latency_ms_p95": 8.645,
-      "capacity_fps": 140.2,
-      "eval_wall_seconds": 25.5,
+      "total_armors": 916,
+      "avg_armors_per_frame": 1.246,
+      "latency_ms_mean": 14.238,
+      "latency_ms_p50": 12.435,
+      "latency_ms_p95": 23.902,
+      "capacity_fps": 70.2,
+      "eval_wall_seconds": 41.2,
       "samples": 3
     },
     {
@@ -65,33 +65,48 @@
       "detection_rate": 0.8338,
       "total_armors": 662,
       "avg_armors_per_frame": 0.834,
-      "latency_ms_mean": 6.798,
-      "latency_ms_p50": 6.736,
-      "latency_ms_p95": 7.283,
-      "capacity_fps": 147.1,
-      "eval_wall_seconds": 27.9,
+      "latency_ms_mean": 13.349,
+      "latency_ms_p50": 12.133,
+      "latency_ms_p95": 21.923,
+      "capacity_fps": 74.9,
+      "eval_wall_seconds": 43.8,
       "samples": 3
     },
     {
       "scene": "E",
       "frames_processed": 776,
       "step": 5,
-      "frames_with_detection": 142,
-      "detection_rate": 0.183,
-      "total_armors": 142,
-      "avg_armors_per_frame": 0.183,
-      "latency_ms_mean": 7.017,
-      "latency_ms_p50": 6.789,
-      "latency_ms_p95": 8.642,
-      "capacity_fps": 142.5,
-      "eval_wall_seconds": 27.6,
+      "frames_with_detection": 510,
+      "detection_rate": 0.6572,
+      "total_armors": 510,
+      "avg_armors_per_frame": 0.657,
+      "latency_ms_mean": 12.948,
+      "latency_ms_p50": 11.859,
+      "latency_ms_p95": 20.954,
+      "capacity_fps": 77.2,
+      "eval_wall_seconds": 42.2,
       "samples": 3
     }
   ],
   "summary": {
-    "frames_processed": 3818,
-    "avg_detection_rate": 0.8034,
-    "avg_latency_ms": 7.444,
-    "min_capacity_fps": 114.2
+    "frames_processed": 4637,
+    "avg_detection_rate": 0.8124,
+    "avg_latency_ms": 13.471,
+    "min_capacity_fps": 70.2
+  },
+  "compare": {
+    "E": {
+      "old": 0.183,
+      "new": 0.657,
+      "note": "同一 bag（sceneE 未重录），step=5 可比"
+    },
+    "A": {
+      "old_params_on_new_bag": 0.891,
+      "new_params_on_new_bag": 0.931
+    },
+    "B": {
+      "old_params_on_new_bag": 0.642,
+      "new_params_on_new_bag": 0.642
+    }
   }
 }

@@ -29,7 +29,8 @@ class DetectorParams:
         # 配对
         self.max_dh = kw.get("max_dh", 0.35)             # 两灯高度差 / 平均高
         self.max_dy = kw.get("max_dy", 0.55)             # 两灯中心 y 差 / 平均高
-        self.gap_ratio = kw.get("gap_ratio", (0.6, 3.0)) # 灯间距 / 平均高
+        self.max_dw = kw.get("max_dw", 0.60)             # 两灯宽度差 / 较宽者（斜视一致性）
+        self.gap_ratio = kw.get("gap_ratio", (0.6, 4.2)) # 灯间距 / 平均高（斜视时可达 3.3+）
         self.min_digit = kw.get("min_digit", 0.04)       # 数字区像素比例下限
         self.max_armors = kw.get("max_armors", 8)
 
@@ -185,7 +186,8 @@ def _pair(img, lights, p):
             dy = abs((y1 + h1 / 2) - (y2 + h2 / 2)) / max(hm, 1)
             dx = x2 - (x1 + w1)
             ratio = dx / max(hm, 1)
-            if dh > p.max_dh or dy > p.max_dy:
+            dw = abs(w1 - w2) / max(max(w1, w2), 1)
+            if dh > p.max_dh or dy > p.max_dy or dw > p.max_dw:
                 continue
             if not (p.gap_ratio[0] <= ratio <= p.gap_ratio[1]):
                 continue

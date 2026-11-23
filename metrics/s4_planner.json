@@ -182,5 +182,31 @@
       "hit_rate": 1.0
     },
     "source": "仿真器 [diag] 日志统计（为验收给仿真加了 shots/hits 计数日志，见 patches/）"
+  },
+  "live_sim_real_chain": {
+    "note": "真实链路（detector→solver→tracker→planner→fire）闭环实弹；检测阈值放宽后 live 检出率 99.9%",
+    "detector_live_rate": 0.9987,
+    "target_distance_m": [
+      1.2,
+      2.4
+    ],
+    "single": {
+      "shots": 20,
+      "hits": 20,
+      "hit_rate": 1.0,
+      "fire_interval_s": 0.5
+    },
+    "auto": {
+      "shots": 18,
+      "hits": 18,
+      "hit_rate": 1.0,
+      "auto_rate_hz": 10.0
+    },
+    "cumulative": {
+      "shots": 38,
+      "hits": 38,
+      "hit_rate": 1.0
+    },
+    "source": "仿真器 [diag] shots/hits 日志"
   }
 }
