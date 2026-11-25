@@ -503,7 +503,21 @@ Q = block([dt⁴/4, dt³/2; dt³/2, dt²]·σa²)（每轴）+ yaw 同理用 σ�
 录屏前把 `config.toml` 的 `[preview] enabled` 改成 `true`（帧率减半，不影响功能），
 再按 §5.4 的命令启动链路即可。
 >
-> **端到端帧率**：`detector_traditional` 处理 50~70 Hz；`publish_hz=40` 时 solver 输出 **50.2 Hz**，
+> **射速（2026-11-25 修复）**：仿真器 `projectile_launch` 里有个本地 cooldown，但它只在「收到开火消息」时
+被 `run_system_once` 调用，每次只 tick 一帧（~4 ms）→ 实际射速被压到 **~0.4 发/秒**。
+删掉该 cooldown（`patches/ros2_fire_cooldown.md`，开火限流交给 ROS 侧 10 Hz）后：
+
+| 条件 | 实测射速 |
+|---|---|
+| 静止目标 | **7.0 发/秒** |
+| 目标底盘自转（~425°/s，12 s） | **7.4 发/秒**（连续期间 89 发，`lost=false` 全程） |
+| planner `fire_advice` | 7.8 Hz（仿真限流 10 Hz） |
+
+累计 **715 发 715 中（100%）**。另：S3 丢失判定仍是「1 帧无观测」，
+但 S4 增加了 `max_stale_s=0.35` 的**短暂丢失容忍**——旋转/换板造成的 1~3 帧丢观测时，
+用「最后状态 + 速度外推」继续瞄准开火，所以旋转目标不会停火。
+
+**端到端帧率**：`detector_traditional` 处理 50~70 Hz；`publish_hz=40` 时 solver 输出 **50.2 Hz**，
 > planner 输出 20~40 Hz → 满足 ≥30 FPS。
 
 ### 3.5 能量机关（S5，加分）

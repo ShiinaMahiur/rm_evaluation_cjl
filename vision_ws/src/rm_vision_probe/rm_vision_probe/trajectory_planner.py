@@ -42,7 +42,8 @@ class TrajectoryPlanner(Node):
         p("auto_rate", 10.0)
         p("max_distance", 12.0)
         p("min_distance", 0.8)
-        p("settle_time", 0.35)
+        p("settle_time", 0.20)
+        p("max_stale_s", 0.35)        # 短暂丢失（装甲板切换/旋转）时仍按预测位置瞄准/开火
         p("lead_iters", 4)
         p("angle_tol_deg", 2.0)
 
@@ -55,11 +56,17 @@ class TrajectoryPlanner(Node):
         self.max_d = float(self.get_parameter("max_distance").value)
         self.min_d = float(self.get_parameter("min_distance").value)
         self.settle = float(self.get_parameter("settle_time").value)
+        self.max_stale = float(self.get_parameter("max_stale_s").value)
         self.lead_iters = int(self.get_parameter("lead_iters").value)
         self.angle_tol = float(self.get_parameter("angle_tol_deg").value)
 
         self.tracker = None
         self.tracker_t = 0.0
+        self.last_state = None      # (pos, vel, t)：最近一次有效观测
+        self.lost_since = None
+        self._last_aim = (0.0, 0.0)
+        self._last_log = 0.0
+        self._fire_hist = []        # [(t, shots)] 计算开火率
         self.muzzle = None
         self.last_fire = 0.0
         self.acquired_at = None
@@ -111,15 +118,27 @@ class TrajectoryPlanner(Node):
     def on_timer(self):
         if self.tracker is None or self.muzzle is None:
             return
-        if self.tracker.get("lost", True) or not self.tracker.get("initialized", False):
-            self.acquired_at = None
-            return
         now = self.get_clock().now().nanoseconds * 1e-9
+        lost = bool(self.tracker.get("lost", True)) or not bool(self.tracker.get("initialized", False))
+        if not lost:
+            pos = np.array(self.tracker.get("pos", []), dtype=float)
+            vel = np.array(self.tracker.get("vel", []), dtype=float)
+            if pos.size != 3 or vel.size != 3:
+                return
+            self.last_state = (pos.copy(), vel.copy(), now)
+            self.lost_since = None
+            if self.acquired_at is None:
+                self.acquired_at = now
+        else:
+            # 旋转/换板时的短暂丢失：只要没超过 max_stale，就用「最后状态 + 速度外推」继续瞄/开火
+            if self.lost_since is None:
+                self.lost_since = now
+            if self.last_state is None or (now - self.lost_since) > self.max_stale:
+                self.acquired_at = None
+                return
+            pos, vel, t_last = self.last_state
+            pos = pos + vel * (now - t_last)
         if self.acquired_at is not None and now - self.acquired_at < self.settle:
-            return
-        pos = np.array(self.tracker.get("pos", []), dtype=float)
-        vel = np.array(self.tracker.get("vel", []), dtype=float)
-        if pos.size != 3 or vel.size != 3:
             return
         best = plan_aim(self.muzzle, pos, vel, self.v, self.g,
                         method=self.method, lead_iters=self.lead_iters)
@@ -141,7 +160,25 @@ class TrajectoryPlanner(Node):
             self.pub_cmd.publish(cmd)
         if fire:
             self.shots += 1
+        self._last_aim = (math.degrees(best["yaw"]), math.degrees(best["pitch"]))
         self._publish_aim(best, d, fire)
+        self._log_stats(now, lost, d)
+
+    def _log_stats(self, now, lost, d):
+        if now - self._last_log >= 2.0:
+            self._last_log = now
+            self._fire_hist.append((now, self.shots))
+            while len(self._fire_hist) > 6:
+                self._fire_hist.pop(0)
+            rate = 0.0
+            if len(self._fire_hist) >= 2:
+                (t0, s0), (t1, s1) = self._fire_hist[0], self._fire_hist[-1]
+                if t1 > t0:
+                    rate = (s1 - s0) / (t1 - t0)
+            self.get_logger().info(
+                "aim yaw=%.1f pitch=%.1f d=%.2f lost=%s fire_rate=%.1fHz shots=%d%s"
+                % (self._last_aim[0], self._last_aim[1], d, lost, rate, self.shots,
+                   " (stale)" if lost else ""))
 
     def _fire_ready(self, now):
         if self.fire_mode == "off":

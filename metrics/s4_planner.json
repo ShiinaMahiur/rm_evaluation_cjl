@@ -217,5 +217,27 @@
       "detector_rate": 0.893,
       "target_distance_m": 1.72
     }
+  },
+  "fire_rate": {
+    "note": "2026-11-25 修复：仿真器 projectile_launch 的本地 cooldown 只在收到开火消息时 tick 一次，把实际射速压到 ~0.4 Hz；删掉该 cooldown（补丁 8）后交给 ROS 侧 10 Hz 限流器",
+    "before_fix_shots_per_s": 0.4,
+    "after_fix": {
+      "static_target": 7.0,
+      "spinning_target": 7.4,
+      "planner_fire_advice_hz": 7.8,
+      "sim_limit_hz": 10.0
+    }
+  },
+  "spin_test": {
+    "note": "假人底盘连续自转（按住 O，~425°/s）12 s，验证『目标旋转时不再射击』问题",
+    "shots": 89,
+    "duration_s": 12,
+    "rate_hz": 7.4,
+    "lost_during_spin": false,
+    "cumulative": {
+      "shots": 715,
+      "hits": 715,
+      "hit_rate": 1.0
+    }
   }
 }
