@@ -92,6 +92,7 @@ ros2 launch rm_vision_probe vision.launch.py
 | **`scripts/scene_driver.py`** | **闭环场景驱动**：读 `/tf` 实时测距测速 + xdotool 按键反馈，替代「按固定时长盲按」（需 X11 后端） | 数据集采集（A/B/C） |
 | **`scripts/demo_live.sh`** | **一键复现「自瞄打靶」演示**：安全开 preview → 起仿真 → 编译并起 S1~S4 → 自动搜索/瞄准/开火 → 打印命中统计；Ctrl+C 自动收尾 | 录屏 / 答辩演示 |
 | `scripts/aim_search.py` | 云台缓慢扫视直到检测到装甲板，对准最近的敌方目标后交给 S4（自瞄的「搜索」环节） | 演示初始化 |
+| `scripts/view_debug.py` | 实时窗口：左 S1 检测结果（灯条/装甲板）+ 叠加 S4 瞄准解（yaw/pitch/距离/FIRE），按 `s` 截图、`q` 退出 | 查看/录屏 |
 
 ```bash
 # S0 验收演示：一键回放 + 云台跟随
@@ -117,7 +118,45 @@ bash scripts/demo_live.sh                 # 连发（默认）
 bash scripts/demo_live.sh --fire single   # 每 0.5 s 一发
 bash scripts/demo_live.sh --fire off      # 只瞄准不开火
 bash scripts/demo_live.sh --keep-sim      # 复用已在跑的仿真器
+bash scripts/demo_live.sh --debug-view   # 额外弹出「检测+瞄准」可视化窗口（录屏/演示推荐）
 ```
+
+### 1.5 怎么查看实际运行情况（自瞄演示）
+
+**看画面（最直观）**：
+
+```bash
+cd /media/chen/RJ/rm_evaluation_cjl
+bash scripts/demo_live.sh --debug-view
+```
+
+会打开两个窗口 + 终端输出：
+
+| 位置 | 能看到什么 |
+|---|---|
+| 仿真器窗口 | 机器人转过去对准目标、连续开火、命中（画面左下角有仿真自带 `total/accurate/pct`） |
+| 「自瞄调试」窗口 | S1 检测结果（蓝/红灯条 + 装甲板框）叠上 S4 瞄准解：`yaw/pitch/距离/飞行时间/FIRE`；按 `s` 存截图，`q` 关闭 |
+| 终端 | 每 2 秒一行 `[仿真命中统计] shots=… hits=… pct=…` 和 `[S1] 检出率=…` |
+
+**只看数据**：
+
+```bash
+tail -f /tmp/demo_live/S4.log        # 每 2s：aim yaw/pitch/d/lost/fire_rate/shots
+tail -f /tmp/demo_live/S1.log        # 检测帧率、检出率、耗时
+grep '\[diag\]' /tmp/demo_live/sim.log | tail -3    # 仿真侧 shots/hits
+python3 -c "import json;d=json.load(open('metrics/s4_planner.json'));print(d['fire_rate'])"
+```
+
+**看单帧话题**（排查用，注意 `ros2 topic list` 有缓存不可信）：
+
+```bash
+ros2 topic echo /planner/aim --once        # S4 解算结果（含两种弹道方法对比）
+ros2 topic echo /tracker/target --once     # S3 估计（pos/vel/predict_100ms/lost）
+ros2 topic echo /rm_gimbal/cmd --once      # 实际下发的云台指令（yaw/pitch 度 + fire_advice）
+```
+
+**自己摆场景看**：演示运行中，用键盘控制假人（`I/J/K/L` 平移、`U/O` 底盘自转、`Tab` 换假人），
+可以直接观察「目标平移/自转时自瞄是否跟得上、是否持续开火」。
 
 ### 1.5 怎么自己看 / 审查 A~E 的 bag
 

@@ -27,12 +27,14 @@ LOG_DIR="${LOG_DIR:-/tmp/demo_live}"
 FIRE=auto
 KEEP_SIM=0
 PREVIEW=1
+DEBUG_VIEW=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --fire) FIRE="${2:-auto}"; shift 2 ;;
     --fire=*) FIRE="${1#*=}"; shift ;;
     --keep-sim) KEEP_SIM=1; shift ;;
     --preview-off) PREVIEW=0; shift ;;
+    --debug-view) DEBUG_VIEW=1; shift ;;
     *) echo "[demo] 未知参数: $1"; exit 2 ;;
   esac
 done
@@ -68,6 +70,7 @@ PY
   if [ "$KEEP_SIM" != "1" ]; then
     pkill -x daedalus 2>/dev/null && ok "仿真器已停止"
   fi
+  pkill -f 'view_debug.py' 2>/dev/null || true
   xset r on 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
@@ -147,7 +150,13 @@ launch() {  # launch <名字> <包内可执行> [args...]
   sleep 1.5
 }
 say "启动 S1 检测 / S2 PnP / S3 EKF / S4 规划 ..."
-launch S1 detector_traditional --ros-args -p publish_hz:=30.0 -p debug_image:=false
+if [ "$DEBUG_VIEW" = "1" ]; then
+  launch S1 detector_traditional --ros-args -p publish_hz:=30.0 -p debug_image:=true
+  setsid nohup python3 "$(dirname "$0")/view_debug.py" > "$LOG_DIR/view.log" 2>&1 < /dev/null &
+  ok "检测可视化窗口已打开（q 退出 / s 截图）"
+else
+  launch S1 detector_traditional --ros-args -p publish_hz:=30.0 -p debug_image:=false
+fi
 launch S2 armor_solver
 launch S3 armor_tracker
 say "搜索目标（云台缓慢扫视，最多 60s）..."
