@@ -262,6 +262,24 @@ def draw_debug(img_bgr, result, params=None):
         cx, cy = int(a["center"][0]), int(a["center"][1])
         cv2.putText(d, f'{a["color"]} d={a["digit_score"]:.2f}', (cx - 60, cy),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+    # 二值化 mask 缩略图（左上角），满足"二值化图 / 候选灯条 / 配对结果"全可视
+    try:
+        masks = _masks(img_bgr, p)
+        h0, w0 = img_bgr.shape[:2]
+        mh, mw = h0 // 4, w0 // 4
+        tiles = []
+        for color in ("blue", "red"):
+            m = masks.get(color)
+            if m is None:
+                m = np.zeros((h0, w0), np.uint8)
+            t = cv2.resize(m, (mw, mh))
+            tiles.append(cv2.cvtColor(t, cv2.COLOR_GRAY2BGR))
+        mini = np.hstack(tiles)
+        d[0:mh, 0:2 * mw] = cv2.addWeighted(d[0:mh, 0:2 * mw], 0.35, mini, 0.65, 0)
+        cv2.putText(d, "HSV mask: blue | red", (4, mh - 6),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1)
+    except Exception:
+        pass
     cv2.putText(d, f'armors={len(result["armors"])}  lights={sum(len(v) for v in result["lights"].values())}',
                 (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 255), 2)
     return d

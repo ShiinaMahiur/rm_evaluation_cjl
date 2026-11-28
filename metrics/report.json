@@ -1,0 +1,432 @@
+{
+  "project": "RoboMaster 26 秋 视觉考核项目",
+  "repo": "https://github.com/ShiinaMahiur/rm_evaluation_cjl",
+  "s0_dataset": {
+    "scenes": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "review": null
+  },
+  "s1_recognize": {
+    "traditional": {
+      "detection_rate_per_scene": {
+        "A": 0.9279,
+        "B": 0.643,
+        "C": 1.0,
+        "D": 0.8338,
+        "E": 0.6572
+      },
+      "latency_ms_p95": 13.471,
+      "capacity_fps": 70.2,
+      "params": {
+        "v_thresh": 110,
+        "s_thresh": 90,
+        "min_aspect": 1.5,
+        "gap_ratio": [
+          0.6,
+          4.2
+        ],
+        "min_digit": 0.04
+      }
+    },
+    "yolo": null
+  },
+  "s2_pnp": {
+    "traditional_metrics": {
+      "A": {
+        "matched": 193,
+        "dets": 193,
+        "solved": 0,
+        "rep": 193,
+        "pos_err": 193,
+        "pos_rel": 193,
+        "bearing": 193,
+        "rot": 193,
+        "rep_mean_p95": [
+          2.0619,
+          2.0619
+        ],
+        "pos_err_mean_p95": [
+          0.0115,
+          0.0115
+        ],
+        "pos_rel_mean_p95": [
+          0.0077,
+          0.0077
+        ],
+        "bearing_deg_mean_p95": [
+          0.0406,
+          0.0406
+        ],
+        "rot_deg_mean_p95": [
+          25.0753,
+          25.0753
+        ],
+        "success_rate": 1.0
+      },
+      "B": {
+        "matched": 186,
+        "dets": 212,
+        "solved": 0,
+        "rep": 186,
+        "pos_err": 186,
+        "pos_rel": 186,
+        "bearing": 186,
+        "rot": 186,
+        "rep_mean_p95": [
+          1.392,
+          2.0619
+        ],
+        "pos_err_mean_p95": [
+          0.0234,
+          0.0853
+        ],
+        "pos_rel_mean_p95": [
+          0.0158,
+          0.0576
+        ],
+        "bearing_deg_mean_p95": [
+          0.0499,
+          0.0806
+        ],
+        "rot_deg_mean_p95": [
+          24.2163,
+          25.8878
+        ],
+        "success_rate": 0.8774
+      },
+      "C": {
+        "matched": 184,
+        "dets": 249,
+        "solved": 0,
+        "rep": 184,
+        "pos_err": 184,
+        "pos_rel": 184,
+        "bearing": 184,
+        "rot": 184,
+        "rep_mean_p95": [
+          0.5732,
+          1.0918
+        ],
+        "pos_err_mean_p95": [
+          0.0282,
+          0.0775
+        ],
+        "pos_rel_mean_p95": [
+          0.019,
+          0.0523
+        ],
+        "bearing_deg_mean_p95": [
+          0.1267,
+          0.1758
+        ],
+        "rot_deg_mean_p95": [
+          22.4351,
+          24.9455
+        ],
+        "success_rate": 0.739
+      },
+      "D": {
+        "matched": 0,
+        "dets": 166,
+        "solved": 0,
+        "rep": 0,
+        "pos_err": 0,
+        "pos_rel": 0,
+        "bearing": 0,
+        "rot": 0,
+        "rep_mean_p95": [
+          null,
+          null
+        ],
+        "pos_err_mean_p95": [
+          null,
+          null
+        ],
+        "pos_rel_mean_p95": [
+          null,
+          null
+        ],
+        "bearing_deg_mean_p95": [
+          null,
+          null
+        ],
+        "rot_deg_mean_p95": [
+          null,
+          null
+        ],
+        "success_rate": 0.0
+      },
+      "E": {
+        "matched": 0,
+        "dets": 41,
+        "solved": 0,
+        "rep": 0,
+        "pos_err": 0,
+        "pos_rel": 0,
+        "bearing": 0,
+        "rot": 0,
+        "rep_mean_p95": [
+          null,
+          null
+        ],
+        "pos_err_mean_p95": [
+          null,
+          null
+        ],
+        "pos_rel_mean_p95": [
+          null,
+          null
+        ],
+        "bearing_deg_mean_p95": [
+          null,
+          null
+        ],
+        "rot_deg_mean_p95": [
+          null,
+          null
+        ],
+        "success_rate": 0.0
+      }
+    },
+    "plate_size_m": [
+      0.15,
+      0.125
+    ],
+    "pnp_flag": "SOLVEPNP_IPPE"
+  },
+  "s3_ekf": {
+    "calibration": {
+      "sigma_pos_m": 0.0317,
+      "sigma_a_mps2": 0.2,
+      "sigma_alpha_radps2": 2.756,
+      "n_residuals": 1844
+    },
+    "scenes": {
+      "C": {
+        "target_id": "armor_11",
+        "frames": 1836,
+        "det_frames": 1666,
+        "det_rate": 0.9074,
+        "pred_err_m": {
+          "100ms": {
+            "mean": 0.0273,
+            "p95": 0.0442,
+            "n": 1666
+          },
+          "200ms": {
+            "mean": 0.0276,
+            "p95": 0.0457,
+            "n": 1666
+          }
+        },
+        "miss_runs": [
+          {
+            "gap_ms": 512.2
+          },
+          {
+            "gap_ms": 514.8
+          },
+          {
+            "gap_ms": 519.7
+          },
+          {
+            "gap_ms": 516.7
+          }
+        ],
+        "lost_latency_ms": {
+          "mean": 25.0,
+          "max": 49.9,
+          "n": 4
+        },
+        "recapture_ms": {
+          "mean": 0.0,
+          "note": "首帧观测即更新（重捕获 = 1 帧 ≈ 5~10 ms）"
+        },
+        "injected_occlusion": [
+          {
+            "gap_ms": 500.0,
+            "lost_latency_ms": 22.9,
+            "recapture_ms": 0.0
+          },
+          {
+            "gap_ms": 500.0,
+            "lost_latency_ms": 6.9,
+            "recapture_ms": 9.9
+          },
+          {
+            "gap_ms": 500.0,
+            "lost_latency_ms": 49.9,
+            "recapture_ms": 8.1
+          },
+          {
+            "gap_ms": 500.0,
+            "lost_latency_ms": 20.5,
+            "recapture_ms": 0.8
+          }
+        ]
+      }
+    }
+  },
+  "s4_planner": {
+    "fire_rate": {
+      "note": "2026-11-25 修复：仿真器 projectile_launch 的本地 cooldown 只在收到开火消息时 tick 一次，把实际射速压到 ~0.4 Hz；删掉该 cooldown（补丁 8）后交给 ROS 侧 10 Hz 限流器",
+      "before_fix_shots_per_s": 0.4,
+      "after_fix": {
+        "static_target": 7.0,
+        "spinning_target": 7.4,
+        "planner_fire_advice_hz": 7.8,
+        "sim_limit_hz": 10.0
+      }
+    },
+    "spin_test": {
+      "note": "假人底盘连续自转（按住 O，~425°/s）12 s，验证『目标旋转时不再射击』问题",
+      "shots": 89,
+      "duration_s": 12,
+      "rate_hz": 7.4,
+      "lost_during_spin": false,
+      "cumulative": {
+        "shots": 715,
+        "hits": 715,
+        "hit_rate": 1.0
+      }
+    },
+    "live_sim_real_chain": {
+      "note": "真实链路（detector→solver→tracker→planner→fire）闭环实弹；检测阈值放宽后 live 检出率 99.9%",
+      "detector_live_rate": 0.9987,
+      "target_distance_m": [
+        1.2,
+        2.4
+      ],
+      "single": {
+        "shots": 20,
+        "hits": 20,
+        "hit_rate": 1.0,
+        "fire_interval_s": 0.5
+      },
+      "auto": {
+        "shots": 18,
+        "hits": 18,
+        "hit_rate": 1.0,
+        "auto_rate_hz": 10.0
+      },
+      "cumulative": {
+        "shots": 38,
+        "hits": 38,
+        "hit_rate": 1.0
+      },
+      "source": "仿真器 [diag] shots/hits 日志",
+      "demo_one_shot_run": {
+        "script": "scripts/demo_live.sh --fire auto",
+        "note": "一条命令跑完：开 preview → 起仿真 → 起 S1~S4 → 自动搜索瞄准 → 自动开火；本次运行仿真统计 50/50",
+        "shots": 50,
+        "hits": 50,
+        "hit_rate": 1.0,
+        "detector_rate": 0.893,
+        "target_distance_m": 1.72
+      }
+    },
+    "method_comparison": {
+      "note": "枪口高 1.2 m、板中心 0.33 m；miss = 弹道穿过目标平面时的高度误差(近似)",
+      "rows": [
+        {
+          "distance_m": 2,
+          "pitch_approx_deg": -22.748,
+          "pitch_exact_deg": -22.616,
+          "pitch_diff_deg": -0.133,
+          "t_flight_ms": 86.7,
+          "drop_cm": 3.7,
+          "miss_approx_cm": 0.19,
+          "miss_exact_cm": 0.39
+        },
+        {
+          "distance_m": 4,
+          "pitch_approx_deg": -10.543,
+          "pitch_exact_deg": -10.483,
+          "pitch_diff_deg": -0.06,
+          "t_flight_ms": 162.7,
+          "drop_cm": 13.0,
+          "miss_approx_cm": 0.05,
+          "miss_exact_cm": 0.25
+        },
+        {
+          "distance_m": 6,
+          "pitch_approx_deg": -5.592,
+          "pitch_exact_deg": -5.567,
+          "pitch_diff_deg": -0.025,
+          "t_flight_ms": 241.1,
+          "drop_cm": 28.5,
+          "miss_approx_cm": 0.16,
+          "miss_exact_cm": 0.05
+        },
+        {
+          "distance_m": 8,
+          "pitch_approx_deg": -2.632,
+          "pitch_exact_deg": -2.624,
+          "pitch_diff_deg": -0.008,
+          "t_flight_ms": 320.3,
+          "drop_cm": 50.3,
+          "miss_approx_cm": 0.12,
+          "miss_exact_cm": 0.01
+        },
+        {
+          "distance_m": 10,
+          "pitch_approx_deg": -0.488,
+          "pitch_exact_deg": -0.488,
+          "pitch_diff_deg": -0.0,
+          "t_flight_ms": 400.0,
+          "drop_cm": 78.5,
+          "miss_approx_cm": 0.2,
+          "miss_exact_cm": 0.19
+        }
+      ],
+      "rows_h0": [
+        {
+          "distance_m": 2,
+          "pitch_approx_deg": 0.899,
+          "pitch_exact_deg": 0.899,
+          "pitch_diff_deg": -0.0,
+          "t_flight_ms": 80.0
+        },
+        {
+          "distance_m": 4,
+          "pitch_approx_deg": 1.798,
+          "pitch_exact_deg": 1.8,
+          "pitch_diff_deg": -0.002,
+          "t_flight_ms": 160.1
+        },
+        {
+          "distance_m": 6,
+          "pitch_approx_deg": 2.696,
+          "pitch_exact_deg": 2.702,
+          "pitch_diff_deg": -0.006,
+          "t_flight_ms": 240.3
+        },
+        {
+          "distance_m": 8,
+          "pitch_approx_deg": 3.593,
+          "pitch_exact_deg": 3.607,
+          "pitch_diff_deg": -0.014,
+          "t_flight_ms": 320.6
+        },
+        {
+          "distance_m": 10,
+          "pitch_approx_deg": 4.487,
+          "pitch_exact_deg": 4.515,
+          "pitch_diff_deg": -0.028,
+          "t_flight_ms": 401.2
+        }
+      ]
+    }
+  },
+  "fps": {
+    "detector_processing_hz": 50.0,
+    "solver_output_hz": 50.2,
+    "planner_output_hz": 20.0,
+    "end_to_end_requirement": "≥30 FPS"
+  }
+}

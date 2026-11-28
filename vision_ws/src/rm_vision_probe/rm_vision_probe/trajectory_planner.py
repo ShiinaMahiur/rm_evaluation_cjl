@@ -46,6 +46,7 @@ class TrajectoryPlanner(Node):
         p("max_stale_s", 0.35)        # 短暂丢失（装甲板切换/旋转）时仍按预测位置瞄准/开火
         p("lead_iters", 4)
         p("angle_tol_deg", 2.0)
+        p("max_aim_jitter_deg", 1.5)  # 连续帧瞄准角抖动阈值：超过则不开火（等云台稳）
 
         self.v = float(self.get_parameter("bullet_speed").value)
         self.g = float(self.get_parameter("gravity").value)
@@ -59,6 +60,9 @@ class TrajectoryPlanner(Node):
         self.max_stale = float(self.get_parameter("max_stale_s").value)
         self.lead_iters = int(self.get_parameter("lead_iters").value)
         self.angle_tol = float(self.get_parameter("angle_tol_deg").value)
+        self.max_jitter = float(self.get_parameter("max_aim_jitter_deg").value)
+        self._aim_hist = []            # [(t, yaw_deg, pitch_deg)] 判断稳定性
+        self._lat_hist = []            # 端到端延迟（图像时间戳 → 下发指令）
 
         self.tracker = None
         self.tracker_t = 0.0
@@ -127,6 +131,7 @@ class TrajectoryPlanner(Node):
                 return
             self.last_state = (pos.copy(), vel.copy(), now)
             self.lost_since = None
+            self._no_solution_sent = False
             if self.acquired_at is None:
                 self.acquired_at = now
         else:
@@ -135,6 +140,7 @@ class TrajectoryPlanner(Node):
                 self.lost_since = now
             if self.last_state is None or (now - self.lost_since) > self.max_stale:
                 self.acquired_at = None
+                self._publish_no_solution()
                 return
             pos, vel, t_last = self.last_state
             pos = pos + vel * (now - t_last)
@@ -149,7 +155,16 @@ class TrajectoryPlanner(Node):
         if not (self.min_d <= d <= self.max_d):
             self._publish_aim(best, d, fire=False)
             return
-        fire = self._fire_ready(now)
+        self._aim_hist.append((now, math.degrees(best["yaw"]), math.degrees(best["pitch"])))
+        while len(self._aim_hist) > 6:
+            self._aim_hist.pop(0)
+        stable = True
+        if len(self._aim_hist) >= 3:
+            recent = self._aim_hist[-3:]
+            dyaw = max(a[1] for a in recent) - min(a[1] for a in recent)
+            dpitch = max(a[2] for a in recent) - min(a[2] for a in recent)
+            stable = (dyaw <= self.max_jitter and dpitch <= self.max_jitter)
+        fire = self._fire_ready(now) and stable
         if self.pub_cmd is not None:
             cmd = GimbalCmd()
             cmd.header.stamp = self.get_clock().now().to_msg()
@@ -162,6 +177,13 @@ class TrajectoryPlanner(Node):
             self.shots += 1
         self._last_aim = (math.degrees(best["yaw"]), math.degrees(best["pitch"]))
         self._publish_aim(best, d, fire)
+        st = self.tracker.get("stamp") or {}
+        if st.get("sec") is not None:
+            lat_ms = (now - (int(st["sec"]) + int(st.get("nanosec") or 0) * 1e-9)) * 1000.0
+            if 0 <= lat_ms < 1000:
+                self._lat_hist.append(lat_ms)
+                while len(self._lat_hist) > 200:
+                    self._lat_hist.pop(0)
         self._log_stats(now, lost, d)
 
     def _log_stats(self, now, lost, d):
@@ -176,9 +198,25 @@ class TrajectoryPlanner(Node):
                 if t1 > t0:
                     rate = (s1 - s0) / (t1 - t0)
             self.get_logger().info(
-                "aim yaw=%.1f pitch=%.1f d=%.2f lost=%s fire_rate=%.1fHz shots=%d%s"
+                "aim yaw=%.1f pitch=%.1f d=%.2f lost=%s fire_rate=%.1fHz shots=%d "
+                "e2e_latency=%.1fms%s"
                 % (self._last_aim[0], self._last_aim[1], d, lost, rate, self.shots,
+                   (sum(self._lat_hist) / len(self._lat_hist)) if self._lat_hist else -1.0,
                    " (stale)" if lost else ""))
+
+    def _publish_no_solution(self):
+        """S3/S4 约定：目标丢失时下发 distance=-1.0，仿真会清空跟踪目标、不输出虚假角度"""
+        if self.pub_cmd is None or getattr(self, "_no_solution_sent", False):
+            return
+        cmd = GimbalCmd()
+        cmd.header.stamp = self.get_clock().now().to_msg()
+        cmd.yaw = 0.0
+        cmd.pitch = 0.0
+        cmd.distance = -1.0
+        cmd.fire_advice = False
+        self.pub_cmd.publish(cmd)
+        self._no_solution_sent = True
+        self.get_logger().info("目标丢失 → 下发 distance=-1.0（无解）")
 
     def _fire_ready(self, now):
         if self.fire_mode == "off":

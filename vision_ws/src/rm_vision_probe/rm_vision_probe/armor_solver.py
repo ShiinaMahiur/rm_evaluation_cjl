@@ -96,7 +96,17 @@ class ArmorSolver(Node):
                 "R_cam_quat": rot_to_quat_msg(R),
             }
             try:
-                tf = self.buf.lookup_transform("odom", "camera_optical_frame", rclpy.time.Time())
+                # 时间同步：用图像时间戳查 TF（不要用 latest），失败再回退到最新
+                try:
+                    st = data.get("stamp") or {}
+                    if st.get("sec") is not None:
+                        stamp = rclpy.time.Time(seconds=int(st["sec"]),
+                                                nanoseconds=int(st.get("nanosec") or 0))
+                    else:
+                        stamp = rclpy.time.Time()
+                    tf = self.buf.lookup_transform("odom", "camera_optical_frame", stamp)
+                except Exception:
+                    tf = self.buf.lookup_transform("odom", "camera_optical_frame", rclpy.time.Time())
                 Rc = _quat2R(tf.transform.rotation)
                 tc = np.array([tf.transform.translation.x, tf.transform.translation.y,
                                tf.transform.translation.z])
