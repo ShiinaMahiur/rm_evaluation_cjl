@@ -218,9 +218,10 @@ python3 ~/bag_extract.py $BAGS/sceneA --every 120   # 每 120 帧存 1 张
 | 视频 | 内容 | 怎么复现 |
 |---|---|---|
 | **[`media/demo_aim.mp4`](media/demo_aim.mp4)** | **自瞄实弹演示**（约 37 s）：系统图像流 + S1 检测框 + S4 瞄准解叠加，画面里能看到目标被检测、云台跟随、连续开火命中（右下角为 fire_advice 计数） | `bash scripts/demo_live.sh --debug-view` 起链路后，`python3 scripts/record_aim_video.py` |
+| **[`media/demo_aim_slow.mp4`](media/demo_aim_slow.mp4)** | **自瞄慢动作版**（3× 慢放，35 s）：75 ms 的弹道被拉长到 ~4 帧，能看到弹丸飞向装甲板、命中瞬间红圈 + `HIT!`，右下角 `SIM shots/hits` 实时递增（如 413/413） | `python3 scripts/record_aim_video.py --source raw --capture-fps 60 --fps 20` |
 | **[`media/demo_A-E.mp4`](media/demo_A-E.mp4)** | **A~E 五个考核场景各 15 s**：A 静止 / B 平移 / C 自转+平移 / D 遮挡 / E 大角度斜视；每帧叠加 S1 检测框，验证数据集与识别链路 | `python3 scripts/make_scene_video.py` |
 
-> 说明：仿真器是 Vulkan 渲染（XWayland），桌面录屏接口抓不到画面，所以两段视频都直接从
+> 说明：仿真器是 Vulkan 渲染（XWayland），桌面录屏接口抓不到画面，所以视频都直接从
 > **系统图像流**录制/合成（`/detector/debug_image`、bag 的 `/image_raw`），
 > 反而更能证明"是我们的链路在工作"（框是 S1 画的、瞄准解是 S4 算的）。
 
