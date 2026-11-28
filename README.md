@@ -66,11 +66,12 @@ cargo build --release --features ros2
 # 3. 跑仿真
 ./target/release/daedalus
 
-# 4. 跑本项目的节点
-cd <本仓库>
+# 4. 跑本项目的节点（四段链路一条 launch 起）
+cd <本仓库>/vision_ws
 colcon build --symlink-install
 source install/setup.bash
-ros2 launch rm_vision_probe vision.launch.py
+ros2 launch rm_vision_probe vision_pipeline.launch.py
+# 可选参数：publish_hz:=30.0  debug_image:=true  fire_mode:=auto|single|off  method:=exact|approx
 ```
 
 > **⚠️ 不要在 NTFS 分区上 `colcon build`** —— 符号链接与权限问题会导致构建失败。
@@ -90,6 +91,7 @@ ros2 launch rm_vision_probe vision.launch.py
 | `scripts/gimbal_diag.py` | 云台指令通路诊断（发绝对角度 ↔ 读 `/gimbal_pose`） | 排障 |
 | **`scripts/review_bags.py`** | **S0 数据集自查**：A~E 抽帧拼图 + 场景特征量化（速度/自转/遮挡/视线夹角）并与考核定义对拍 | 数据集验收 |
 | **`scripts/scene_driver.py`** | **闭环场景驱动**：读 `/tf` 实时测距测速 + xdotool 按键反馈，替代「按固定时长盲按」（需 X11 后端） | 数据集采集（A/B/C） |
+| **`ros2 launch rm_vision_probe vision_pipeline.launch.py`** | **四段链路一条 launch 启动**（S1→S4，参数可传） | ✅ 提交要求「ros2 launch 可运行」 |
 | **`scripts/demo_live.sh`** | **一键复现「自瞄打靶」演示**：安全开 preview → 起仿真 → 编译并起 S1~S4 → 自动搜索/瞄准/开火 → 打印命中统计；Ctrl+C 自动收尾 | 录屏 / 答辩演示 |
 | `scripts/aim_search.py` | 云台缓慢扫视直到检测到装甲板，对准最近的敌方目标后交给 S4（自瞄的「搜索」环节） | 演示初始化 |
 | `scripts/view_debug.py` | 实时窗口：左 S1 检测结果（灯条/装甲板）+ 叠加 S4 瞄准解（yaw/pitch/距离/FIRE），按 `s` 截图、`q` 退出 | 查看/录屏 |
@@ -561,7 +563,8 @@ Q = block([dt⁴/4, dt³/2; dt³/2, dt²]·σa²)（每轴）+ yaw 同理用 σ�
 
 ### 3.5 能量机关（S5，加分）
 
-⬜ 时间允许再做
+**未实现**。时间分配优先级：S1~S4（90 分主体）> S5（加分）。现有代码里没有能量机关识别/周期拟合，
+`patches/` 与仿真器的 `power_rune` 话题（`/tf` 里能看到 `power_rune_small/large`）可作为后续接入点。
 
 ---
 
@@ -569,16 +572,63 @@ Q = block([dt⁴/4, dt³/2; dt³/2, dt²]·σa²)（每轴）+ yaw 同理用 σ�
 
 > 考核要求：「每个参数都要能说出为什么是这个值」
 
-**所有参数外置在 `config/`，带注释。**
+**参数分两类**：持久化配置在 `config/`（带注释），S1/S2 的节点参数通过 ROS 参数传入（有默认值）。
 
 | 参数文件 | 内容 |
 |---|---|
-| `config/detector.yaml` | 识别阈值、颜色范围、灯条几何约束 |
-| `config/solver.yaml` | 相机内参、装甲板物理尺寸、PnP 方法 |
+| `config/detector.yaml` | 识别阈值、颜色范围、灯条几何约束（对应 `detector_traditional` 的 ROS 参数） |
+| `config/solver.yaml` | 相机内参、装甲板物理尺寸、PnP 方法（对应 `armor_solver` 的 ROS 参数） |
 | `config/tracker.yaml` | Q/R 矩阵、关联阈值、丢失判定时间 |
 | `config/planner.yaml` | 弹道参数、开火阈值、延迟补偿 |
 
-⬜ 待填（每个参数的含义 + 整定过程 + 最终取值依据）
+### 4.1 S1 识别参数
+
+| 参数 | 值 | 为什么是这个值 |
+|---|---|---|
+| `v_thresh` / `s_thresh` | 110 / 90 | 灯条是 LED 高亮高饱和，HSV 的 V/S 双门限把场地灯光和反光挡掉；用 A 场景统计：灯条区域 V≥200、S≥150，取一半留余量 |
+| `gap_ratio` | **(0.6, 4.2)** | 两灯间距/灯高。正面观察约 1.5~2.5；**大角度斜视实测最紧一帧 3.29**，原来上限 3.0 会把 E 场景整帧过滤掉 → 放宽到 4.2（E 检出 18.3%→65.7%） |
+| `max_dw` | 0.60 | 放宽 `gap_ratio` 后加的**灯宽一致性**约束（两灯宽度差/较宽者），防止把不同装甲板的灯配成对 |
+| `max_dh` / `max_dy` | 0.35 / 0.55 | 同一块板上两灯高度、中心高度差上限（相对平均灯高）；斜视时会有透视差，留 2 倍余量 |
+| `min_digit` | 0.04 | 两灯之间数字区的非背景像素比例下限；用于排除「两根不相干的亮条」 |
+| `publish_hz` | 30（演示 40） | 检测处理 50~70 Hz，但下游只需 ≥30 FPS；发布频率越高 CPU 越紧，30 是「满足 I10 + 不透支」的折中 |
+
+### 4.2 S2 解算参数
+
+| 参数 | 值 | 依据 |
+|---|---|---|
+| `plate_size_m` | 0.15 × 0.125 | 与仿真 asset 中装甲板贴图尺寸一致（11-03 用 marker 标定复核） |
+| `pnp_flag` | `SOLVEPNP_IPPE_SQUARE` | 平面矩形只有 IPPE 有解析解，且比 ITERATIVE 稳（不会跳分支）；板面取 marker 本地 **x-y 平面**（法向 z） |
+| `max_reproj_px` | 6.0 | 重投影超过 6 px 的角度/角点基本是坏的（角点检测错），直接拒绝，避免污染 EKF |
+| `aspect_fix` | true | 角点按真实板长宽比做亚像素修正，抵消检测器把角点压缩到灯条内侧的偏差（实测 X/Y 缩放 1.042/2.251） |
+| `min/max_distance` | 1.0 / 15.0 m | 太近是自车/邻车、太远超出弹道有效距离 |
+
+### 4.3 S3 估计器 Q/R（数据标定，不手调）
+
+| 参数 | 值 | 怎么估出来的 |
+|---|---|---|
+| `sigma_pos` | 0.032 m | C 场景 1844 个「S2 解算位置 − `/tf` 真值」残差的标准差 |
+| `sigma_a` | 0.2 m/s² | GT 轨迹 10 ms 重采样后二阶差分（加速度）的鲁棒标准差（MAD×1.4826） |
+| `sigma_alpha` | 2.756 rad/s² | GT 姿态角速度的二阶差分鲁棒标准差 |
+| `gate_m` | 1.0 m | 关联门限：超过就当作跳变重新初始化（换板跳变约 0.4 m，留 2.5 倍） |
+| `lost_frames` | 1 | 考核要求丢失判定 ≤30 ms；帧间隔 5~10 ms，1 帧即判 ≈10 ms |
+
+### 4.4 S4 规划器参数
+
+| 参数 | 值 | 依据 |
+|---|---|---|
+| `bullet_speed` / `gravity` | 25.0 / 9.81 | 与仿真 `config.toml [projectile]` 一致（无空气阻力） |
+| `method` | `exact` | 解 tanθ 二次方程取低伸解；`approx` 在 25 m/s、≤10 m 区间与 exact 差 ≤0.13°，exact 作为默认更稳 |
+| `max_stale_s` | 0.35 | 目标自转/换板会短时丢 1~3 帧观测；0.35 s 内用「最后状态+速度外推」继续开火（修复「旋转就停火」） |
+| `settle_time` | 0.20 | 目标首次捕获后等云台 PID 收敛，再开第一枪 |
+| `fire_mode` / `auto_rate` | auto / 10 Hz | 仿真侧开火限流 10 Hz；auto 模式实测射速 7~8 发/秒 |
+| `min_d / max_d` | 0.8 / 12.0 m | 太近枪口来不及、太远重力补偿误差大，且场地仅 ~8×8 m |
+
+### 4.5 参数整定过程（为什么能解释每次变化）
+
+1. **S1**：先画调试图看灯条/配对 → 发现 E 场景配对被 `gap_ratio` 卡 → 打印每对候选的 dh/dy/ratio/digit 定位到 ratio=3.29 → 放宽 + 加灯宽约束
+2. **S2**：与 `/tf` 板面真值对拍 → 发现 4.24 cm 系统偏差（marker 中心 vs 板中心）和板面平面用错 → 修正后 A 场景 4.44%/1.27° → 0.77%/0.041°
+3. **S3**：Q/R 全部从数据估计（见上表），然后用 C 场景预测误差验证（2.7 cm ≪ 8 cm 目标）
+4. **S4**：弹道两法对比 + 仿真闭环实弹验证；射速问题定位到仿真器 cooldown（补丁 8）而不是我们的发送逻辑
 
 ---
 
@@ -604,16 +654,25 @@ nvidia-smi --query-gpu=name,utilization.gpu --format=csv
 | I1 | 识别准确率 | ≥ 0.90（传统）/ mAP@0.5 ≥ 0.85（DL） | 传统：图级检出 A/B/C=100%、D=83.4%、E=18.3%；**YOLO（跨场景验证 E）：mAP@0.5=0.845、mAP@0.5:0.95=0.778、实例召回 E=81.1% / A~D=88.7~100%**（见 `metrics/s1_traditional.json`、`metrics/s1_yolo.json`） | 传统：A~E bag 每 5 帧取 1；YOLO：跨场景验证（训练 A/B/C/D，验证 E）+ 逐场景实例级 IoU≥0.5 |
 | I2 | 识别耗时 | ≤ 8 ms（CPU 1440×1080） | 传统：**7.44 ms**（CPU，p50 7.0/p95 10.7）；YOLO：**22.2 ms（CPU）/ 6.9 ms（GPU）** | 节点内计时 / `model.predict` 端到端计时 |
 | I3 | 解算精度 | 距离误差 ≤ 5%，角误差 ≤ 1° | 端到端 A **0.77% / 0.041°**、B 1.58% / 0.050°、C 1.90% / 0.127°（D/E 受 S1 检测限制，见 3.2 / 6.2） | 与 `/tf` 板面真值对拍（`scripts/eval_s2_pnp.py`，`metrics/s2_pnp.json`） |
-| I4 | 解算稳定性 | 无跳变/翻转 | ⬜ | 大角度斜视场景目视 + 曲线 |
+| I4 | 解算稳定性 | 无跳变/翻转 | **A/B/C 解算成功率 100%（IPPE 固定解分支，无镜像翻转）；重投影误差 mean/p95 = 1.4~2.1 px；板面姿态角均值稳定（A 0.017°/p95 0.045°）**；位置误差在静止场景无跳变（A 0.77%、p95 1.9%） | `scripts/eval_s2_pnp.py` 逐帧统计成功率/重投影/误差分布（`metrics/s2_pnp.json` 的 `traditional`），并对斜视 bag 目视抽帧 |
 | I5 | 预测精度 | ≤ 0.08 m @ 100 ms（I5 定义写 200 ms，两个都测） | **100 ms：2.73 cm（p95 4.42）/ 200 ms：2.76 cm（p95 4.57）**（C 场景 1836 帧，`metrics/s3_ekf.json`） | EKF 预测 vs `/tf` 真值 |
 | I6 | 丢失恢复 | 判定 ≤ 30 ms，重捕获 ≤ 50 ms | **判定 25 ms（1 帧）/ 重捕获 0–10 ms**（含 4 段 0.5 s 注入遮挡测试） | 注入遮挡 + 帧时间戳计时 |
 | I7 | 首发命中率 | ≥ 40% | **100%（真实链路 20/20；真值驱动另测 15/15；单发 0.5 s，距离 1.2~2.4 m）** | 仿真 `[diag]` shots/hits + `/planner/aim` 记录 |
 | I8 | 连续命中率 | ≥ 60% | **100%（真实链路 18/18，累计 38/38；10 Hz 连发）** | 同上；离线 bag C（移动目标）328/328 |
 | I10 | 端到端帧率 | ≥ 30 FPS | **50.2 Hz**（detector 处理 50~70 Hz，`publish_hz=40` → solver 50 Hz，planner 20~40 Hz） | 节点内统计 + `ros2 topic hz /rm_gimbal/cmd` |
 
-**指标 JSON 自动输出：**
+**指标 JSON 的生成方式**（节点自带统计 + 离线评估脚本）：
 
-⬜ 待实现（节点输出 `metrics/report_*.json`）
+| 文件 | 来源 |
+|---|---|
+| `metrics/s1_traditional.json` / `s1_yolo.json` | `scripts/eval_detector.py` / `eval_yolo.py` 在 bag 上逐帧评估 |
+| `metrics/s2_pnp.json` / `s2_calib.json` | `scripts/eval_s2_pnp.py` / `calib_s2_plate.py` 与 `/tf` 真值对拍 |
+| `metrics/s3_ekf.json` | `scripts/eval_s3_ekf.py`（含注入遮挡测试） |
+| `metrics/s4_planner.json` | `scripts/eval_s4_planner.py`（离线命中率）+ 仿真 `[diag]` 实弹统计 + 射速/旋转测试 |
+| 节点运行统计 | `detector_traditional`（frame/检出率/耗时）、`armor_solver`（解算帧率/耗时）、`armor_tracker`（丢失/重捕获计数）、`trajectory_planner`（每 2 s `fire_rate/lost/shots`） |
+
+> 说明：指标 JSON 由离线评估脚本生成（可复现，命令写在每节），节点侧输出运行统计日志；
+> 没有单独做「节点自动写 report_*.json」，因为评估需要真值（`/tf`）和整段 bag，放在节点里会引入评测耦合。
 
 ```json
 {
@@ -648,8 +707,6 @@ nvidia-smi --query-gpu=name,utilization.gpu --format=csv
 | **YOLO 自动标注曾经标错（已修）** | 旧版 `make_yolo_dataset.py` 把 `/tf` marker 中心当板中心、且用错板面平面 → 标注框画在板底部地面上，导致旧 mAP 0.974/检出 100% 是"自己标自己测"的循环论证 | 2026-11-05 改走 `plate_pose_from_marker()` + 灯条可见性过滤，重训后跨场景 mAP@0.5=0.845。**教训：自动标注必须先叠图目视验证** |
 | **板面姿态角误差大（A 场景 25°）** | 平面矩形的 PnP 存在镜像/倾斜分支歧义；我们用灯条矩形重建，丢掉了真实透视边角线索 | 用 YOLO 关键点给真实四角；或用 S3 多帧滤波约束姿态。位置与视线角不受影响 |
 
-⬜ 待填（每完成一层，记录已知失败场景）
-
 ---
 
 ## 7. 实验日志
@@ -658,8 +715,14 @@ nvidia-smi --query-gpu=name,utilization.gpu --format=csv
 
 | 日期 | 改动 | 指标变化 | 结论 |
 |---|---|---|---|
-| 2026-11-02 | 双系统 + open 驱动 | `/image_raw` 6.3 Hz → **278~293 Hz** | WSL 的 Vulkan 缺失是根本瓶颈，硬件升级解决 |
-| ⬜ | ⬜ | ⬜ | ⬜ |
+| 2026-11-02 | 双系统 + `nvidia-driver-580-open` | `/image_raw` 6.3 Hz → **278~293 Hz** | WSL 缺 Vulkan 是根本瓶颈，硬件升级解决 |
+| 2026-11-05 | S1 传统灯条 + YOLO 两条路线；S2 PnP 打通 | 传统 7.44 ms/帧（E 检出 18.3%）；YOLO 跨场景 mAP@0.5=0.845 | 传统法快但斜视弱；YOLO 需重做标注（旧标注是「自己标自己测」） |
+| 2026-11-05 | 修正 GT 约定（板面 x-y 平面 + marker→板中心偏移 + 角点缩放） | A 端到端距离误差 4.44%/1.27° → **0.77%/0.041°** | GT 约定错会让所有误差评估失真，必须先对拍 |
+| 2026-11-23 | 修正云台 pitch 约定（**0=水平**，不是 90）+ 驻留持续发指令 + `hold_aim` | A 后段目标不再出画；`gimbal_pose` 恒等四元数不能用 | 控制约定要从仿真源码/实测标定，不能信旧假设 |
+| 2026-11-23 | S3 EKF + 数据驱动 Q/R | 预测 100 ms **2.73 cm**（p95 4.42）→ 达 ≤8 cm；丢失判定 25 ms、重捕获 0~10 ms | Q/R 用残差/二阶差分估计，指标可解释 |
+| 2026-11-23 | S4 弹道（exact/approx）+ 提前量 + 开火 | 离线命中 328/328；真值驱动实弹 44/44；真实链路 38/38 | 弹道两法在 ≤10 m 等价，差别在极端高差 |
+| 2026-11-23 | S1 放宽 `gap_ratio` 3.0→4.2 + 灯宽约束 | E 检出 18.3% → **65.7%**；live 检出率 ~2% → 99.9% | 斜视投影比正面宽，几何约束要按最坏情况定 |
+| 2026-11-25 | 修仿真器弹丸 cooldown（补丁 8）+ S4 `max_stale_s` | 射速 0.4 → **7 发/秒**；旋转目标不再停火；累计 715/715 命中 | 射速瓶颈在仿真器内部计时器；短时丢观测应容忍 |
 
 ---
 

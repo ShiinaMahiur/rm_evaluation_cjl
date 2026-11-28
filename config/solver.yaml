@@ -1,0 +1,9 @@
+# S2 观测器（armor_solver）参数参考
+# 实际运行通过 ROS 参数传入，例如：
+#   ros2 run rm_vision_probe armor_solver --ros-args -p max_reproj_px:=6.0
+armor_solver:
+  ros__parameters:
+    max_reproj_px: 6.0   # 重投影误差超过该值直接拒绝（防止坏角点污染下游）
+    min_distance: 1.0    # 最小解算距离 (m)
+    max_distance: 15.0   # 最大解算距离 (m)
+    aspect_fix: true     # 角点按真实板长宽比做亚像素修正
