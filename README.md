@@ -213,6 +213,17 @@ python3 ~/bag_extract.py $BAGS/sceneA --every 120   # 每 120 帧存 1 张
 
 ---
 
+### 1.6 演示录屏（提交要求：A~E 各一次 + 自瞄实弹）
+
+| 视频 | 内容 | 怎么复现 |
+|---|---|---|
+| **[`media/demo_aim.mp4`](media/demo_aim.mp4)** | **自瞄实弹演示**（约 37 s）：系统图像流 + S1 检测框 + S4 瞄准解叠加，画面里能看到目标被检测、云台跟随、连续开火命中（右下角为 fire_advice 计数） | `bash scripts/demo_live.sh --debug-view` 起链路后，`python3 scripts/record_aim_video.py` |
+| **[`media/demo_A-E.mp4`](media/demo_A-E.mp4)** | **A~E 五个考核场景各 15 s**：A 静止 / B 平移 / C 自转+平移 / D 遮挡 / E 大角度斜视；每帧叠加 S1 检测框，验证数据集与识别链路 | `python3 scripts/make_scene_video.py` |
+
+> 说明：仿真器是 Vulkan 渲染（XWayland），桌面录屏接口抓不到画面，所以两段视频都直接从
+> **系统图像流**录制/合成（`/detector/debug_image`、bag 的 `/image_raw`），
+> 反而更能证明"是我们的链路在工作"（框是 S1 画的、瞄准解是 S4 算的）。
+
 ## 2. 整体架构
 
 ### 2.1 数据流
@@ -740,7 +751,7 @@ rm_evaluation_cjl/
 │   └── README.md
 ├── config/                    ← 所有参数外置（带注释）
 ├── metrics/                   ← 指标 JSON（节点自动生成）
-├── media/                     ← 调试图、录屏（大文件走外链）
+├── media/                     ← 演示录屏（demo_aim.mp4 / demo_A-E.mp4）
 ├── scripts/                   ← 一键运行脚本
 └── docs/                      ← 场景说明、方法论文档
 ```
